@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, onSnapshot, updateDoc, arrayUnion } from "firebase/firestore";
 import { auth, db } from './firebase';
 
@@ -39,12 +39,38 @@ const Profile = () => {
         setValue("");
     };
 
-    return (
+    const renderListAndForm = (title, list, value, setValue, fieldName, placeholder) => (
         <div>
-            <h2 className="text-2xl font-bold mb-4">Your Profile</h2>
-            <div className="mb-4">
-                <label htmlFor="gender-select" className="block mb-2">Gender</label>
-                <select id="gender-select" value={userData.gender || ''} onChange={handleGenderChange} className="border p-2 rounded">
+            <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
+            <div className="flex flex-wrap gap-2 mb-3">
+                {list?.map((item, index) => <span key={index} className="bg-white/30 text-white text-sm font-medium px-3 py-1 rounded-full">{item}</span>)}
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); handleAddItem(fieldName, value, setValue); }} className="flex gap-2">
+                <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    className="w-full px-4 py-2 text-gray-800 placeholder-gray-500 bg-white/50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder={placeholder}
+                />
+                <button type="submit" className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-md transition duration-200">
+                    Add
+                </button>
+            </form>
+        </div>
+    );
+
+    return (
+        <div className="text-white space-y-6">
+            <h2 className="text-3xl font-bold text-center">Your Profile</h2>
+            <div>
+                <label htmlFor="gender-select" className="block mb-2 text-lg font-semibold">Gender</label>
+                <select
+                    id="gender-select"
+                    value={userData.gender || ''}
+                    onChange={handleGenderChange}
+                    className="w-full px-4 py-2 text-gray-800 bg-white/50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
                     <option value="">Prefer not to say</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -52,38 +78,9 @@ const Profile = () => {
                 </select>
             </div>
 
-            <div className="mb-4">
-                <h3 className="text-xl font-bold mb-2">Allergies</h3>
-                <ul>
-                    {userData.allergies?.map((allergy, index) => <li key={index}>{allergy}</li>)}
-                </ul>
-                <form onSubmit={(e) => { e.preventDefault(); handleAddItem('allergies', newAllergy, setNewAllergy); }} className="mt-2">
-                    <input type="text" value={newAllergy} onChange={(e) => setNewAllergy(e.target.value)} className="border p-2 rounded mr-2" placeholder="Add Allergy" />
-                    <button type="submit" className="bg-blue-500 text-white p-2 rounded">Add Allergy</button>
-                </form>
-            </div>
-
-            <div className="mb-4">
-                <h3 className="text-xl font-bold mb-2">Current Medications</h3>
-                <ul>
-                    {userData.current_meds?.map((med, index) => <li key={index}>{med}</li>)}
-                </ul>
-                <form onSubmit={(e) => { e.preventDefault(); handleAddItem('current_meds', newMed, setNewMed); }} className="mt-2">
-                    <input type="text" value={newMed} onChange={(e) => setNewMed(e.target.value)} className="border p-2 rounded mr-2" placeholder="Add Medication" />
-                    <button type="submit" className="bg-blue-500 text-white p-2 rounded">Add Medication</button>
-                </form>
-            </div>
-
-            <div>
-                <h3 className="text-xl font-bold mb-2">Pre-existing Conditions</h3>
-                <ul>
-                    {userData.conditions?.map((condition, index) => <li key={index}>{condition}</li>)}
-                </ul>
-                <form onSubmit={(e) => { e.preventDefault(); handleAddItem('conditions', newCondition, setNewCondition); }} className="mt-2">
-                    <input type="text" value={newCondition} onChange={(e) => setNewCondition(e.target.value)} className="border p-2 rounded mr-2" placeholder="Add Condition" />
-                    <button type="submit" className="bg-blue-500 text-white p-2 rounded">Add Condition</button>
-                </form>
-            </div>
+            {renderListAndForm('Allergies', userData.allergies, newAllergy, setNewAllergy, 'allergies', 'Add Allergy')}
+            {renderListAndForm('Current Medications', userData.current_meds, newMed, setNewMed, 'current_meds', 'Add Medication')}
+            {renderListAndForm('Pre-existing Conditions', userData.conditions, newCondition, setNewCondition, 'conditions', 'Add Condition')}
         </div>
     );
 };
