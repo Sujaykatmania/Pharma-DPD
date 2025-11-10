@@ -88,27 +88,27 @@ const LoginPage = () => {
 
     return (
         <div className="min-h-screen w-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center p-4">
-            <div className="w-full max-w-sm p-8 space-y-6 bg-white/30 backdrop-filter backdrop-blur-xl border border-white/20 shadow-xl rounded-2xl">
+            <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 backdrop-filter backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl">
                 <div className="flex justify-center">
                     <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7v-2h4V7h2v4h4v2h-4v4h-2z" fill="currentColor"/>
                     </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-center text-white">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
+                <h2 className="text-2xl font-bold text-center text-white text-pop">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
                 <form onSubmit={handleEmailPasswordAction} className="space-y-4">
                     <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Email"
-                        className="w-full px-4 py-2 text-gray-800 placeholder-gray-500 bg-white/50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                     <input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Password"
-                        className="w-full px-4 py-2 text-gray-800 placeholder-gray-500 bg-white/50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                     {error && <p className="text-red-500 bg-white/80 rounded-md p-2 text-sm text-center">{error}</p>}
                     <button
@@ -130,7 +130,7 @@ const LoginPage = () => {
                 </div>
                 <button
                     onClick={handleGoogleSignIn}
-                    className="w-full flex items-center justify-center py-2 px-4 bg-white text-gray-700 font-medium rounded-md shadow-md hover:bg-gray-50 transition duration-200"
+                    className="w-full flex items-center justify-center py-2 px-4 bg-white/40 border border-white/50 shadow-lg transition-all duration-200 hover:bg-white/60 hover:shadow-xl active:scale-95 text-slate-800 font-medium rounded-md"
                 >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.802 6.842C34.553 2.964 29.613 1 24 1C10.745 1 0 11.745 0 25s10.745 24 24 24s24-10.745 24-24c0-1.282-.124-2.528-.352-3.725H43.611z"/>
