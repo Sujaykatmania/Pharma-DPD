@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- We need 'React' for hooks
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from './firebase'; // Import auth from your firebase.js
-import { LoginPage } from './LoginPage.jsx'; // Import your (working) LoginPage
-import { HomePage } from './HomePage.jsx'; // Import the new HomePage
+import { auth } from './firebase'; 
+import { LoginPage } from './LoginPage.jsx'; 
+import { HomePage } from './HomePage.jsx'; 
+import { SplashScreen } from './SplashScreen.jsx'; // <-- Jules's new import
 
 function App() {
-  // These states will hold the user and loading status
+  // --- All three states are needed ---
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true); // <-- Jules's new state
 
-  // This is the auth listener that was missing
+  // --- This is YOUR superior useEffect from 'main' ---
   useEffect(() => {
-    // onAuthStateChanged returns an "unsubscribe" function
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         // User is signed in
@@ -24,11 +25,18 @@ function App() {
       setLoading(false);
     });
 
-    // Cleanup function to stop listening when the component unmounts
+    // Cleanup function
     return () => unsubscribe();
-  }, []); // The empty array [] means this runs once on mount
+  }, []); 
 
-  // 1. Show "Loading..." while the listener is checking
+  // --- This is the new, combined render logic ---
+
+  // 1. Show Splash Screen first (from Jules)
+  if (showSplash) {
+    return <SplashScreen onAnimationComplete={() => setShowSplash(false)} />;
+  }
+
+  // 2. Show YOUR styled Loading screen (from 'main')
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -37,12 +45,12 @@ function App() {
     );
   }
 
-  // 2. If not loading, and no user, show the LoginPage
+  // 3. The rest of the logic, which was the same
   if (!user) {
     return <LoginPage />;
   }
 
-  // 3. If not loading, and there IS a user, show the HomePage!
+  // 4. Show the HomePage
   return <HomePage user={user} />;
 }
 

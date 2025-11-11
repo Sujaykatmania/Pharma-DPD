@@ -87,29 +87,26 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center p-4">
-            {/* FIX 1: Replaced 'shadow-inner-lg' with 'shadow-2xl' to make the panel "pop out".
-              Increased blur to 'backdrop-blur-xl'.
-            */}
+        /* Kept 'iridescent-bg' from Jules's branch */
+        <div className="min-h-screen w-full iridescent-bg flex items-center justify-center p-4">
+            
+            {/* Kept 'shadow-2xl' and 'backdrop-blur-xl' from your 'main' branch */}
             <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-2xl border border-white/30 rounded-2xl backdrop-filter backdrop-blur-xl">
                 
-                {/* FIX: Reverted to a pill shape (removed 'w-fit', added 'max-w-xs').
-                  Added 'relative' to the container.
-                  Added 'z-10' to the SVG to bring it in front.
-                  Added a new 'div' to act as the "thin line" behind the plus.
+                {/* FIX: Reverted to pill shape (removed 'w-fit', added 'max-w-xs').
+                    REMOVED the vertical line div as you requested.
                 */}
                 <div className="relative flex justify-center bg-white/30 rounded-full py-4 px-8 shadow-lg max-w-xs mx-auto">
-                    {/* The SVG icon (with z-10 added) */}
-                    <svg className="w-16 h-16 text-white z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* The SVG icon (z-10 no longer needed) */}
+                    <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7v-2h4V7h2v4h4v2h-4v4h-2z" fill="currentColor"/>
                     </svg>
                 </div>
                 
+                {/* FIX: Added 'mb-4' to fix the text overlap from image_cda05c.png */}
                 <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50 mb-4">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
                 
-                {/* FIX 2: Removed my failed 'pt-2' fix from this form. 
-                  The 'space-y-6' on the parent div is correct.
-                */}
+                {/* FIX: Removed the failed 'pt-2' from the form */}
                 <form onSubmit={handleEmailPasswordAction} className="space-y-4">
                     <input
                         type="email"
@@ -126,11 +123,11 @@ const LoginPage = () => {
                         className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                     {error && <p className="text-red-500 bg-white/80 rounded-md p-2 text-sm text-center">{error}</p>}
-                    {/* FIX 2: Replaced flat blue with "stationary liquid glass" gradient.
-                    */}
+                    
+                    {/* Kept the 'liquid glass' gradient button */}
                     <button
                         type="submit"
-                        className="w-full py-2 px-4 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
+                        className="w-full py-2 px-4 bg-gradient-to-br from-blue-400/80 to-blue-600/80 hover:from-blue-400 hover:to-blue-600 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
                     >
                         {isRegisterMode ? 'Register' : 'Sign In'}
                     </button>
@@ -145,8 +142,8 @@ const LoginPage = () => {
                     <span className="flex-shrink mx-4 text-white">Or</span>
                     <div className="flex-grow border-t border-white/30"></div>
                 </div>
-                {/* FIX 3: Replaced flat white with "stationary liquid glass" gradient.
-                */}
+                
+                {/* Kept the 'liquid glass' gradient Google button */}
                 <button
                     onClick={handleGoogleSignIn}
                     className="w-full flex items-center justify-center py-2 px-4 bg-gradient-to-br from-white/90 to-white/50 hover:from-white/100 hover:to-white/70 text-slate-800 font-medium rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
