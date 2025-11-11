@@ -87,7 +87,7 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center p-4">
+        <div className="min-h-screen w-full iridescent-bg flex items-center justify-center p-4">
             <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-inner-lg border border-white/30 rounded-2xl">
                 <div className="flex justify-center bg-white/30 rounded-full p-4 shadow-lg">
                     <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
