@@ -2,19 +2,12 @@ import React, { useState } from 'react'; // Import React and useState
 import { signOut } from "firebase/auth";
 import { auth } from './firebase';
 import { Profile } from './Profile.jsx';
+import { ScannerPage } from './ScannerPage.jsx';
 import PropTypes from 'prop-types';
 
 // Import the new PillNav and logo
 import PillNav from './PillNav';
 import logo from './logo.svg';
-
-// This is a placeholder for your future component
-const ScannerPage = () => (
-  <div className="text-center">
-    <h2 className="text-3xl font-bold text-white text-shadow-sm">Scanner Page</h2>
-    <p className="text-white/80 mt-2">This is where the prescription scanner will go.</p>
-  </div>
-);
 
 // This is a placeholder for your future component
 const RemindersPage = () => (
