@@ -88,13 +88,13 @@ const LoginPage = () => {
 
     return (
         <div className="min-h-screen w-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center p-4">
-            <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 backdrop-filter backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl">
-                <div className="flex justify-center">
+            <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-inner-lg border border-white/30 rounded-2xl">
+                <div className="flex justify-center bg-white/30 rounded-full p-4 shadow-lg">
                     <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7v-2h4V7h2v4h4v2h-4v4h-2z" fill="currentColor"/>
                     </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-center text-white text-pop">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
+                <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
                 <form onSubmit={handleEmailPasswordAction} className="space-y-4">
                     <input
                         type="email"
@@ -113,13 +113,13 @@ const LoginPage = () => {
                     {error && <p className="text-red-500 bg-white/80 rounded-md p-2 text-sm text-center">{error}</p>}
                     <button
                         type="submit"
-                        className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-md transition duration-200"
+                        className="w-full py-2 px-4 bg-blue-500/80 hover:bg-blue-500 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
                     >
                         {isRegisterMode ? 'Register' : 'Sign In'}
                     </button>
                 </form>
                 <div className="text-center">
-                    <button onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-sm text-white hover:underline">
+                    <button onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-slate-700 font-medium text-lg hover:text-black">
                         {isRegisterMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
                     </button>
                 </div>
@@ -130,7 +130,7 @@ const LoginPage = () => {
                 </div>
                 <button
                     onClick={handleGoogleSignIn}
-                    className="w-full flex items-center justify-center py-2 px-4 bg-white/40 border border-white/50 shadow-lg transition-all duration-200 hover:bg-white/60 hover:shadow-xl active:scale-95 text-slate-800 font-medium rounded-md"
+                    className="w-full flex items-center justify-center py-2 px-4 bg-white/40 hover:bg-white/60 text-slate-800 font-medium rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
                 >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.802 6.842C34.553 2.964 29.613 1 24 1C10.745 1 0 11.745 0 25s10.745 24 24 24s24-10.745 24-24c0-1.282-.124-2.528-.352-3.725H43.611z"/>
