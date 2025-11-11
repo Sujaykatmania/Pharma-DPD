@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "cd react-firebase-auth && vite build",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint ./react-firebase-auth --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {

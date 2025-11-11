@@ -87,26 +87,14 @@ const LoginPage = () => {
     };
 
     return (
-        /* Kept 'iridescent-bg' from Jules's branch */
         <div className="min-h-screen w-full iridescent-bg flex items-center justify-center p-4">
-            
-            {/* Kept 'shadow-2xl' and 'backdrop-blur-xl' from your 'main' branch */}
-            <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-2xl border border-white/30 rounded-2xl backdrop-filter backdrop-blur-xl">
-                
-                {/* FIX: Reverted to pill shape (removed 'w-fit', added 'max-w-xs').
-                    REMOVED the vertical line div as you requested.
-                */}
-                <div className="relative flex justify-center bg-white/30 rounded-full py-4 px-8 shadow-lg max-w-xs mx-auto">
-                    {/* The SVG icon (z-10 no longer needed) */}
+            <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-inner-lg border border-white/30 rounded-2xl">
+                <div className="flex justify-center bg-white/30 rounded-full p-4 shadow-lg">
                     <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7v-2h4V7h2v4h4v2h-4v4h-2z" fill="currentColor"/>
                     </svg>
                 </div>
-                
-                {/* FIX: Added 'mb-4' to fix the text overlap from image_cda05c.png */}
-                <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50 mb-4">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
-                
-                {/* FIX: Removed the failed 'pt-2' from the form */}
+                <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
                 <form onSubmit={handleEmailPasswordAction} className="space-y-4">
                     <input
                         type="email"
@@ -123,11 +111,9 @@ const LoginPage = () => {
                         className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                     {error && <p className="text-red-500 bg-white/80 rounded-md p-2 text-sm text-center">{error}</p>}
-                    
-                    {/* Kept the 'liquid glass' gradient button */}
                     <button
                         type="submit"
-                        className="w-full py-2 px-4 bg-gradient-to-br from-blue-400/80 to-blue-600/80 hover:from-blue-400 hover:to-blue-600 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
+                        className="w-full py-2 px-4 bg-blue-500/80 hover:bg-blue-500 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
                     >
                         {isRegisterMode ? 'Register' : 'Sign In'}
                     </button>
@@ -142,11 +128,9 @@ const LoginPage = () => {
                     <span className="flex-shrink mx-4 text-white">Or</span>
                     <div className="flex-grow border-t border-white/30"></div>
                 </div>
-                
-                {/* Kept the 'liquid glass' gradient Google button */}
                 <button
                     onClick={handleGoogleSignIn}
-                    className="w-full flex items-center justify-center py-2 px-4 bg-gradient-to-br from-white/90 to-white/50 hover:from-white/100 hover:to-white/70 text-slate-800 font-medium rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
+                    className="w-full flex items-center justify-center py-2 px-4 bg-white/40 hover:bg-white/60 text-slate-800 font-medium rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
                 >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.802 6.842C34.553 2.964 29.613 1 24 1C10.745 1 0 11.745 0 25s10.745 24 24 24s24-10.745 24-24c0-1.282-.124-2.528-.352-3.725H43.611z"/>

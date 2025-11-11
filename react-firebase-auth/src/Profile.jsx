@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot, updateDoc, arrayUnion } from "firebase/firestore";
-import { auth, db } from './firebase';
+import { auth, db, functions } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+
+const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
 
 const Profile = () => {
     const [userData, setUserData] = useState({
@@ -12,6 +15,8 @@ const Profile = () => {
     const [newAllergy, setNewAllergy] = useState("");
     const [newMed, setNewMed] = useState("");
     const [newCondition, setNewCondition] = useState("");
+    const [isValidating, setIsValidating] = useState(false);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (auth.currentUser) {
@@ -32,11 +37,25 @@ const Profile = () => {
 
     const handleAddItem = async (field, value, setValue) => {
         if (value.trim() === "") return;
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-            [field]: arrayUnion(value)
-        });
-        setValue("");
+        setIsValidating(true);
+        setError(null);
+        try {
+            const result = await validateMedicalTerm({ text: value });
+            if (result.data.isValid) {
+                const userDocRef = doc(db, "users", auth.currentUser.uid);
+                await updateDoc(userDocRef, {
+                    [field]: arrayUnion(result.data.correctedTerm)
+                });
+                setValue("");
+            } else {
+                setError(`'${value}' is not a recognized medical term.`);
+            }
+        } catch (error) {
+            console.error("Error validating term:", error);
+            setError("An error occurred during validation.");
+        } finally {
+            setIsValidating(false);
+        }
     };
 
     const renderListAndForm = (title, list, value, setValue, fieldName, placeholder) => (
@@ -44,7 +63,7 @@ const Profile = () => {
             <h3 className="text-slate-800 font-semibold text-lg text-shadow-sm">{title}</h3>
             <ul className="flex flex-wrap gap-2 mb-3">
                 {list?.map((item, index) => (
-                    <li key={index} className="bg-gradient-to-r from-purple-500/80 to-purple-700/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
+                    <li key={index} className="bg-purple-600/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
                         {item}
                     </li>
                 ))}
@@ -57,10 +76,15 @@ const Profile = () => {
                     className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder={placeholder}
                 />
-                <button type="submit" className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95">
-                    Add
+                <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-500/80 hover:bg-blue-500 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
+                    disabled={isValidating}
+                >
+                    {isValidating ? '...' : 'Add'}
                 </button>
             </form>
+            {error && <p className="text-red-500 bg-white/80 rounded-md p-2 text-sm text-center mt-2">{error}</p>}
         </div>
     );
 
