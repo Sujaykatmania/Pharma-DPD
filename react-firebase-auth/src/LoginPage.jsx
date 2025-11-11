@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from './firebase';
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import Iridescence from './Iridescence';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -87,9 +88,17 @@ const LoginPage = () => {
     };
 
     return (
-        /* Kept 'iridescent-bg' from Jules's branch */
-        <div className="min-h-screen w-full iridescent-bg flex items-center justify-center p-4">
-            
+            /* * FIX: We are now using the REAL Iridescence component.
+            * Removed 'iridescent-bg' and added 'relative' to the div.
+            */
+            <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+                {/* This is the new WebGL background! */}
+                <Iridescence 
+                color={[0.8, 0.8, 1]} /* A nice purplish-blue, [R,G,B] from 0 to 1 */
+                speed={0.5} 
+                amplitude={0.2} 
+                mouseReact={true}
+                />           
             {/* Kept 'shadow-2xl' and 'backdrop-blur-xl' from your 'main' branch */}
             <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-2xl border border-white/30 rounded-2xl backdrop-filter backdrop-blur-xl">
                 

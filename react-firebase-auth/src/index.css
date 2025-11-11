@@ -2,24 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* This is Jules's new Iridescence animation */
-@keyframes iridescent-shine {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.iridescent-bg {
-  background: linear-gradient(
-    -45deg,
-    #ee7752,
-    #e73c7e,
-    #23a6d5,
-    #23d5ab
-  );
-  background-size: 400% 400%;
-  animation: iridescent-shine 15s ease infinite;
-}
 
 /* This is your "pop" text class from the 'main' branch */
 .text-shadow-sm {
