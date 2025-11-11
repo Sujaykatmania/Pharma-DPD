@@ -41,10 +41,10 @@ const Profile = () => {
 
     const renderListAndForm = (title, list, value, setValue, fieldName, placeholder) => (
         <div>
-            <h3 className="text-lg font-semibold text-white mb-3 text-pop">{title}</h3>
+            <h3 className="text-slate-800 font-semibold text-lg text-shadow-sm">{title}</h3>
             <ul className="flex flex-wrap gap-2 mb-3">
                 {list?.map((item, index) => (
-                    <li key={index} className="bg-blue-100/30 rounded-md p-2 my-1 border border-white/20 shadow-sm text-slate-800">
+                    <li key={index} className="bg-purple-600/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
                         {item}
                     </li>
                 ))}
@@ -57,7 +57,7 @@ const Profile = () => {
                     className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder={placeholder}
                 />
-                <button type="submit" className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-md transition duration-200">
+                <button type="submit" className="px-4 py-2 bg-blue-500/80 hover:bg-blue-500 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95">
                     Add
                 </button>
             </form>
@@ -65,10 +65,10 @@ const Profile = () => {
     );
 
     return (
-        <div className="text-white space-y-6">
-            <h2 className="text-3xl font-bold text-center text-pop">Your Profile</h2>
+        <div className="space-y-6">
+            <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">Your Profile</h2>
             <div>
-                <label htmlFor="gender-select" className="block mb-2 text-lg font-semibold text-pop">Gender</label>
+                <label htmlFor="gender-select" className="block mb-2 text-slate-800 font-semibold text-lg text-shadow-sm">Gender</label>
                 <select
                     id="gender-select"
                     value={userData.gender || ''}
