@@ -74,7 +74,7 @@ const Profile = () => {
             <h3 className="text-slate-800 font-semibold text-lg text-shadow-sm">{title}</h3>
             <ul className="flex flex-wrap gap-2 mb-3">
                 {list?.map((item, index) => (
-                    <li key={index} className="bg-gradient-to-r from-purple-500/80 to-purple-700/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
+                    <li key={index} className="bg-gradient-to-r from-purple-400/80 to-purple-700/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
                         {item}
                     </li>
                 ))}
