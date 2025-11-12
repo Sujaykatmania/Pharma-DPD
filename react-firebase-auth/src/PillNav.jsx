@@ -291,7 +291,9 @@ const PillNav = ({
                   onClick={(e) => {
                     e.preventDefault();
                     onItemClick(item.href);
-                    setIsMobileMenuOpen(false);
+                    // --- THIS IS THE FIX ---
+                    // Call toggleMobileMenu() to run the animation
+                    toggleMobileMenu(); 
                   }}
                 >
                   {item.label}
