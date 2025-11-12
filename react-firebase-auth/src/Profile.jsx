@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot, updateDoc, arrayUnion } from "firebase/firestore";
-import { auth, db, functions } from './firebase';
-import { httpsCallable } from 'firebase/functions';
+import { auth, db } from './firebase';
 
 const Profile = () => {
     const [userData, setUserData] = useState({
@@ -13,8 +12,6 @@ const Profile = () => {
     const [newAllergy, setNewAllergy] = useState("");
     const [newMed, setNewMed] = useState("");
     const [newCondition, setNewCondition] = useState("");
-    const [isValidating, setIsValidating] = useState(false);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (auth.currentUser) {
@@ -35,26 +32,11 @@ const Profile = () => {
 
     const handleAddItem = async (field, value, setValue) => {
         if (value.trim() === "") return;
-        setIsValidating(true);
-        setError(null);
-        const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
-        try {
-            const result = await validateMedicalTerm({ text: value });
-            if (result.data.isValid) {
-                const userDocRef = doc(db, "users", auth.currentUser.uid);
-                await updateDoc(userDocRef, {
-                    [field]: arrayUnion(result.data.correctedTerm)
-                });
-                setValue("");
-            } else {
-                setError(`'${value}' is not a recognized medical term.`);
-            }
-        } catch (error) {
-            console.error("Error validating medical term:", error);
-            setError("An error occurred while validating the term.");
-        } finally {
-            setIsValidating(false);
-        }
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+            [field]: arrayUnion(value)
+        });
+        setValue("");
     };
 
     const renderListAndForm = (title, list, value, setValue, fieldName, placeholder) => (
@@ -75,18 +57,10 @@ const Profile = () => {
                     className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder={placeholder}
                 />
-                <button type="submit" disabled={isValidating} className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isValidating ? (
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    ) : (
-                        'Add'
-                    )}
+                <button type="submit" className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95">
+                    Add
                 </button>
             </form>
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
     );
 
