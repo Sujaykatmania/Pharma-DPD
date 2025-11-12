@@ -9,7 +9,14 @@ import logo from './logo.svg';
 
 // --- FIX: Import the REAL ScannerPage ---
 import { ScannerPage } from './ScannerPage.jsx';
-import { RemindersPage } from './RemindersPage.jsx';
+
+// This is a placeholder for your future component
+const RemindersPage = () => (
+  <div className="text-center">
+    <h2 className="text-3xl font-bold text-white text-shadow-sm">Reminders Page</h2>
+    <p className="text-white/80 mt-2">This is where the medication reminders will go.</p>
+  </div>
+);
 
 
 const HomePage = ({ user }) => {
