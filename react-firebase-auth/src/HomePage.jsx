@@ -2,8 +2,8 @@ import React, { useState } from 'react'; // Import React and useState
 import { signOut } from "firebase/auth";
 import { auth } from './firebase';
 import { Profile } from './Profile.jsx';
-import { ScannerPage } from './ScannerPage.jsx';
 import PropTypes from 'prop-types';
+import { ScannerPage } from './ScannerPage.jsx';
 
 // Import the new PillNav and logo
 import PillNav from './PillNav';
