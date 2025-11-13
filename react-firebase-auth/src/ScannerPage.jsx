@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions, auth, db } from './firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, where, getDocs } from 'firebase/firestore';
 
 const SkeletonLoader = () => (
     <div className="space-y-4">
@@ -139,7 +139,21 @@ const ScannerPage = ({ setIsAppBusy }) => {
     }
 
     setIsCreatingReminder(true);
+    setError(null); // Clear previous errors
+
     try {
+      // --- DEDUPLICATION LOGIC ---
+      const remindersRef = collection(db, `users/${auth.currentUser.uid}/reminders`);
+      const q = query(remindersRef, where("medName", "==", med.name));
+      const existingDocs = await getDocs(q);
+
+      if (!existingDocs.empty) {
+        setError("A reminder for this medicine already exists.");
+        setIsCreatingReminder(false);
+        return; // Stop execution
+      }
+      // --- END DEDUPLICATION ---
+
       // Create a new document in the 'reminders' sub-collection
       const reminderDoc = {
         medName: med.name,
@@ -152,7 +166,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
         isActive: true
       };
 
-      await addDoc(collection(db, `users/${auth.currentUser.uid}/reminders`), reminderDoc);
+      await addDoc(remindersRef, reminderDoc);
       
       // Close the confirmation box
       setReminderConfirmForIndex(null);
