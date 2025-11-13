@@ -35,6 +35,8 @@ const ScannerPage = ({ setIsAppBusy }) => {
   const [reminderFormForIndex, setReminderFormForIndex] = useState(null);
   const [reminderSchedule, setReminderSchedule] = useState('');
   const [isCreatingReminder, setIsCreatingReminder] = useState(false);
+  const [parsedSchedules, setParsedSchedules] = useState({});
+  const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null);
 
   // 1. When a user selects a file
   const handleFileChange = (e) => {
@@ -96,6 +98,25 @@ const ScannerPage = ({ setIsAppBusy }) => {
       const crossCheckResult = await crossCheckMedication({ scannedMeds: newMedicines });
       const interactions = crossCheckResult?.data?.data?.interactions || [];
       setCrossCheckWarnings(interactions);
+
+      // -- NEW: Parse schedule for all meds --
+      if (newMedicines.length > 0) {
+        const schedulePromises = newMedicines.map((med) => {
+          if (med.dosage && med.duration) {
+            const parseSchedule = httpsCallable(functions, 'parseSchedule');
+            return parseSchedule({ dosage: med.dosage, duration: med.duration });
+          }
+          return Promise.resolve(null);
+        });
+        const scheduleResults = await Promise.all(schedulePromises);
+        const newParsedSchedules = {};
+        scheduleResults.forEach((result, index) => {
+          if (result) {
+            newParsedSchedules[index] = result.data.data;
+          }
+        });
+        setParsedSchedules(newParsedSchedules);
+      }
     } catch (err) {
       console.error("Error during scan or cross-check:", err);
       // Prefer user-friendly message but include details in console
@@ -285,7 +306,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
 
                     {/* Set Reminder button */}
                     <button
-                      onClick={() => setReminderFormForIndex(index)}
+                      onClick={() => setReminderConfirmForIndex(index)}
                       className="px-3 py-1 bg-green-600 text-white rounded"
                     >
                       Set Reminder
@@ -293,28 +314,26 @@ const ScannerPage = ({ setIsAppBusy }) => {
                   </div>
                 </div>
 
-                {/* Inline reminder form (MVP) */}
-                {reminderFormForIndex === index && (
-                  <div className="mt-3 p-3 border rounded bg-gray-50">
-                    <label className="block text-sm font-medium mb-1">Schedule (free-text)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Every day 9:00 AM"
-                      value={reminderSchedule}
-                      onChange={(e) => setReminderSchedule(e.target.value)}
-                      className="w-full px-3 py-2 rounded border"
-                    />
+                {/* -- NEW: Smart Reminder Confirmation -- */}
+                {reminderConfirmForIndex === index && parsedSchedules[index] && (
+                  <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
+                    <p className="font-semibold">
+                      Detected a schedule of {parsedSchedules[index].times_per_day} times per day for {parsedSchedules[index].for_x_days} days.
+                    </p>
+                    <p>Would you like to schedule these reminders?</p>
                     <div className="mt-2 flex gap-2">
                       <button
-                        onClick={() => handleCreateReminderForMed(index)}
-                        disabled={isCreatingReminder}
+                        onClick={() => {
+                          // TODO: Actually create reminders
+                          setReminderConfirmForIndex(null);
+                        }}
                         className="px-3 py-1 bg-indigo-600 text-white rounded"
                       >
-                        {isCreatingReminder ? 'Creating...' : 'Create Reminder'}
+                        Confirm
                       </button>
                       <button
-                        onClick={() => { setReminderFormForIndex(null); setReminderSchedule(''); }}
-                        className="px-3 py-1 bg-gray-300 rounded"
+                        onClick={() => setReminderConfirmForIndex(null)}
+                        className="px-3 py-1 bg-gray-400 rounded"
                       >
                         Cancel
                       </button>

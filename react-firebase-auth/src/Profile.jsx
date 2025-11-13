@@ -81,7 +81,7 @@ const Profile = () => {
                 {list?.map((item, index) => (
                     <li key={index} className="bg-gradient-to-r from-purple-400/80 to-purple-700/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
                         {item}
-                        <button onClick={() => handleDeleteItem(fieldName, item)} className="ml-2 text-white font-bold">X</button>
+                        <button onClick={() => handleDeleteItem(fieldName, item)} className="ml-2 font-extrabold text-white/70 hover:text-white">&times;</button>
                     </li>
                 ))}
             </ul>
