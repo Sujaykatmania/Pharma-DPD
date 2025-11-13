@@ -35,6 +35,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
   const [isCreatingReminder, setIsCreatingReminder] = useState(false);
   const [parsedSchedules, setParsedSchedules] = useState({});
   const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null);
+  const [addedReminders, setAddedReminders] = useState([]);
 
   // 1. When a user selects a file
   const handleFileChange = (e) => {
@@ -168,6 +169,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
 
       await addDoc(remindersRef, reminderDoc);
       
+      setAddedReminders(prev => [...prev, index]);
       // Close the confirmation box
       setReminderConfirmForIndex(null);
 
@@ -273,13 +275,21 @@ const ScannerPage = ({ setIsAppBusy }) => {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    {/* "Set Reminder" button */}
-                    <button
-                      onClick={() => setReminderConfirmForIndex(index)}
-                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded shadow-md"
-                    >
-                      Set Reminder
-                    </button>
+                    {addedReminders.includes(index) ? (
+                        <button
+                            disabled
+                            className="px-3 py-1 bg-gray-500 text-white rounded shadow-md"
+                        >
+                            Reminder Added
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setReminderConfirmForIndex(index)}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded shadow-md"
+                        >
+                            Set Reminder
+                        </button>
+                    )}
                   </div>
                 </div>
 

@@ -13,6 +13,7 @@ const Profile = () => {
     const [newAllergy, setNewAllergy] = useState("");
     const [newMed, setNewMed] = useState("");
     const [newCondition, setNewCondition] = useState("");
+    const [isEditingGender, setIsEditingGender] = useState(false);
     
     // We can have a separate error for each form
     const [allergyError, setAllergyError] = useState(null);
@@ -36,6 +37,7 @@ const Profile = () => {
     const handleGenderChange = async (e) => {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
         await updateDoc(userDocRef, { gender: e.target.value });
+        setIsEditingGender(false);
     };
 
     const handleDeleteItem = async (field, itemToRemove) => {
@@ -118,17 +120,32 @@ const Profile = () => {
             
             <div>
                 <label htmlFor="gender-select" className="block mb-2 text-slate-800 font-semibold text-lg text-shadow-sm">Gender</label>
-                <select
-                    id="gender-select"
-                    value={userData.gender || ''}
-                    onChange={handleGenderChange}
-                    className="w-full px-4 py-2 text-slate-800 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                    <option value="">Prefer not to say</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                </select>
+                {isEditingGender ? (
+                    <select
+                        id="gender-select"
+                        value={userData.gender || ''}
+                        onChange={handleGenderChange}
+                        onBlur={() => setIsEditingGender(false)} // Optional: hide select on losing focus
+                        className="w-full px-4 py-2 text-slate-800 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                        <option value="">Prefer not to say</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            disabled
+                            value={userData.gender || 'Not set'}
+                            className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md disabled:opacity-70"
+                        />
+                        <button onClick={() => setIsEditingGender(true)} className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95">
+                            Edit
+                        </button>
+                    </div>
+                )}
             </div>
 
             {renderListAndForm('Allergies', userData.allergies, newAllergy, setNewAllergy, 'allergies', 'Add Allergy', allergyError, setAllergyError)}
