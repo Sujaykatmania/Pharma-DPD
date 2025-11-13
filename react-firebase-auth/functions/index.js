@@ -29,7 +29,7 @@ exports.validateMedicalTerm = onCall(async (request) => {
         'conditions': 'condition'
     };
     const singleCategory = categoryMap[category];
-    
+
     const prompt = `You are a strict medical data validator. A user has provided a term and a category. Your task is to validate if the term is a real, correctly categorized medical term. Respond only with a JSON object.
 1. If the term is valid AND correctly categorized: Return {"isValid": true, "correctedTerm": "Corrected Term"}. Correct any typos.
 2. If the term is valid BUT incorrectly categorized: Return {"isValid": false, "reason": "Incorrect category. 'Term' is a [condition/medication/allergy], not a ${singleCategory}."}.
@@ -133,4 +133,48 @@ New Medicines: ${JSON.stringify(newMedicines)}`;
         console.error("Error in crossCheckMedication:", error);
         throw new HttpsError("internal", "Failed to cross-check medications.");
     }
+});
+
+exports.parseSchedule = onCall(async (request) => {
+  const { dosage, duration } = request.data;
+
+  if (!dosage || !duration) {
+    throw new HttpsError("invalid-argument", "Missing 'dosage' or 'duration' argument.");
+  }
+
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
+
+  const prompt = `You are an intelligent medical schedule parser. A user has provided a dosage and a duration string. Your task is to parse these into a structured JSON object. Respond only with a JSON object.
+1.  **times_per_day**: Must be a number.
+2.  **for_x_days**: Must be a number.
+Example 1:
+Dosage: "1 pill, twice a day"
+Duration: "14 days"
+Output: {"times_per_day": 2, "for_x_days": 14}
+Example 2:
+Dosage: "2 tablets in the morning, 1 at night"
+Duration: "1 month"
+Output: {"times_per_day": 3, "for_x_days": 30}
+Example 3 (Tricky):
+Dosage: "Take one every 6 hours"
+Duration: "for a week"
+Output: {"times_per_day": 4, "for_x_days": 7}
+Example 4 (Uncertain):
+Dosage: "As needed for pain"
+Duration: "3 days supply"
+Output: {"times_per_day": 0, "for_x_days": 3, "is_prn": true }`;
+
+  try {
+    const result = await model.generateContent(`${prompt}\n\nDosage: "${dosage}"\nDuration: "${duration}"`);
+    const response = await result.response;
+    let jsonText = response.text();
+    if (jsonText.startsWith("```json")) {
+        jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+    }
+    const jsonResponse = JSON.parse(jsonText);
+    return { data: jsonResponse };
+  } catch (error) {
+    console.error("Error in parseSchedule:", error);
+    throw new HttpsError("internal", "Failed to parse schedule.");
+  }
 });

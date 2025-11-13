@@ -5,6 +5,7 @@ import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion
 
 const SkeletonLoader = () => (
     <div className="space-y-4">
+        {/* ... (skeleton loader code is unchanged) ... */}
         <div className="bg-white/20 p-4 rounded-lg shadow-md border border-white/40 animate-pulse">
             <div className="h-4 bg-white/30 rounded w-3/4"></div>
             <div className="h-4 bg-white/30 rounded w-1/2 mt-2"></div>
@@ -28,25 +29,23 @@ const ScannerPage = ({ setIsAppBusy }) => {
   const [error, setError] = useState(null);
   const [crossCheckWarnings, setCrossCheckWarnings] = useState([]);
   const [isChecking, setIsChecking] = useState(false);
-
-  // Save / reminder state
   const [isSaving, setIsSaving] = useState(false);
-  const [scanSavedId, setScanSavedId] = useState(null);
-  const [reminderFormForIndex, setReminderFormForIndex] = useState(null);
-  const [reminderSchedule, setReminderSchedule] = useState('');
+  
+  // --- REMINDER STATE ---
   const [isCreatingReminder, setIsCreatingReminder] = useState(false);
+  const [parsedSchedules, setParsedSchedules] = useState({});
+  const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null);
 
   // 1. When a user selects a file
   const handleFileChange = (e) => {
     setError(null);
     setScanResults(null);
     setCrossCheckWarnings([]);
-    setScanSavedId(null);
-    setReminderFormForIndex(null);
+    setReminderConfirmForIndex(null);
+    setParsedSchedules({});
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      // Convert the file to Base64
       const reader = new FileReader();
       reader.readAsDataURL(selectedFile);
       reader.onload = () => {
@@ -71,18 +70,18 @@ const ScannerPage = ({ setIsAppBusy }) => {
     setIsAppBusy(true);
     setScanResults(null);
     setCrossCheckWarnings([]);
-    setScanSavedId(null);
-    setReminderFormForIndex(null);
+    setParsedSchedules({});
+    setReminderConfirmForIndex(null);
 
     try {
       const scanPrescription = httpsCallable(functions, 'scanPrescription');
       const base64Data = base64Image.split(',')[1];
       const result = await scanPrescription({ imageData: base64Data });
 
-      // Backend may add isPrescription flag
       if (result?.data?.data?.isPrescription === false) {
         setError("This does not appear to be a prescription.");
         setIsScanning(false);
+        setIsAppBusy(false);
         return;
       }
 
@@ -92,124 +91,102 @@ const ScannerPage = ({ setIsAppBusy }) => {
       // Kick off cross-check
       setIsChecking(true);
       const crossCheckMedication = httpsCallable(functions, 'crossCheckMedication');
-      // backend expects { scannedMeds: [...] }
-      const crossCheckResult = await crossCheckMedication({ scannedMeds: newMedicines });
+      const crossCheckResult = await crossCheckMedication({ newMedicines: newMedicines });
       const interactions = crossCheckResult?.data?.data?.interactions || [];
       setCrossCheckWarnings(interactions);
+      setIsChecking(false);
+
+      // Parse schedules for all new meds
+      if (newMedicines.length > 0) {
+        const schedulePromises = newMedicines.map((med) => {
+          if (med.dosage && med.duration) {
+            const parseSchedule = httpsCallable(functions, 'parseSchedule');
+            return parseSchedule({ dosage: med.dosage, duration: med.duration });
+          }
+          return Promise.resolve(null);
+        });
+        const scheduleResults = await Promise.all(schedulePromises);
+        const newParsedSchedules = {};
+        scheduleResults.forEach((result, index) => {
+          if (result) {
+            newParsedSchedules[index] = result.data.data;
+          }
+        });
+        setParsedSchedules(newParsedSchedules);
+      }
     } catch (err) {
       console.error("Error during scan or cross-check:", err);
-      // Prefer user-friendly message but include details in console
       setError(err?.message || "An error occurred. Please try again.");
     } finally {
-      setIsChecking(false);
       setIsScanning(false);
       setIsAppBusy(false);
     }
   };
 
-  // Save scanned data to users/{uid}/scan_history and set scanSavedId
-  const handleSave = async (userOverride = false) => {
-    if (!auth?.currentUser) {
-      setError("You must be signed in to save scans.");
-      return null;
-    }
-    if (!scanResults) {
-      setError("No scan results to save.");
-      return null;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      const payload = {
-        scannedAt: serverTimestamp(),
-        medicines: scanResults,
-        warningsReceived: Array.isArray(crossCheckWarnings) && crossCheckWarnings.length > 0,
-        userOverride: !!userOverride
-      };
-      const ref = await addDoc(collection(db, `users/${auth.currentUser.uid}/scan_history`), payload);
-      setScanSavedId(ref.id);
-      return ref.id;
-    } catch (e) {
-      console.error("Failed to save scan history:", e);
-      setError("Failed to save scan.");
-      return null;
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Create a reminder doc for a specific med (by index)
-  // If the scan isn't saved yet, auto-save it first and then create the reminder linking to scanSavedId
-  const handleCreateReminderForMed = async (index) => {
+  // --- THIS IS THE FIX ---
+  // This function now *actually* saves the reminder to Firestore
+  const handleConfirmReminder = async (index) => {
     if (!auth?.currentUser) {
       setError("You must be signed in to set reminders.");
       return;
     }
-    if (!scanResults || !scanResults[index]) {
-      setError("Selected medicine not found.");
+    const med = scanResults[index];
+    const schedule = parsedSchedules[index];
+
+    if (!med || !schedule) {
+      setError("Could not find medicine or schedule data.");
       return;
     }
 
-    setError(null);
     setIsCreatingReminder(true);
-
     try {
-      // ensure scan saved
-      let localScanId = scanSavedId;
-      if (!localScanId) {
-        const createdId = await handleSave(false);
-        if (!createdId) {
-          setError("Failed to save scan — cannot create reminder.");
-          setIsCreatingReminder(false);
-          return;
-        }
-        localScanId = createdId;
-      }
-
-      // Build reminder doc (MVP: free-text schedule)
-      const med = scanResults[index];
+      // Create a new document in the 'reminders' sub-collection
       const reminderDoc = {
-        medName: med.name || '',
-        dosage: med.dosage || '',
-        duration: med.duration || '',
+        medName: med.name,
+        dosage: med.dosage,
+        durationInDays: schedule.for_x_days,
+        timesPerDay: schedule.times_per_day,
+        isPRN: schedule.is_prn || false, // 'as needed'
         createdAt: serverTimestamp(),
-        sourceScanId: localScanId,
-        schedule: reminderSchedule || '',
-        enabled: true
+        isActive: true
       };
 
       await addDoc(collection(db, `users/${auth.currentUser.uid}/reminders`), reminderDoc);
+      
+      // Close the confirmation box
+      setReminderConfirmForIndex(null);
 
-      // UI feedback
-      setReminderFormForIndex(null);
-      setReminderSchedule('');
     } catch (e) {
       console.error("Failed to create reminder:", e);
       setError("Failed to create reminder.");
-    } finally {
-      setIsCreatingReminder(false);
     }
+    setIsCreatingReminder(false);
   };
+  
+  // --- THIS IS THE OTHER FIX ---
+  // This logic was missing from the last file.
+  const handleSaveMeds = async () => {
+    if (!scanResults || !auth.currentUser) return;
 
-    const handleSaveMeds = async () => {
-    if (!scanResults) return;
-
+    setIsSaving(true);
     const userDocRef = doc(db, "users", auth.currentUser.uid);
     const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
 
+    let savedCount = 0;
     for (const med of scanResults) {
       try {
-        const result = await validateMedicalTerm({ text: med.name, category: 'medication' });
+        const result = await validateMedicalTerm({ text: med.name, category: 'current_meds' });
         const { isValid, correctedTerm } = result.data.data;
         if (isValid) {
           await updateDoc(userDocRef, { current_meds: arrayUnion(correctedTerm) });
+          savedCount++;
         }
       } catch (error) {
         console.error("Error validating/saving med:", error);
       }
     }
+    console.log(`Successfully saved ${savedCount} medicines to profile.`);
+    setIsSaving(false);
   };
 
   return (
@@ -229,7 +206,6 @@ const ScannerPage = ({ setIsAppBusy }) => {
                      hover:file:bg-white/50 text-slate-800 text-shadow-sm"
         />
         
-        {/* Image Preview */}
         {base64Image && (
           <img 
             src={base64Image} 
@@ -238,16 +214,19 @@ const ScannerPage = ({ setIsAppBusy }) => {
           />
         )}
 
-        {/* Scan Button */}
         <button
           onClick={handleScan}
           disabled={isScanning || !file}
           className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
         >
-          {isScanning ? 'Scanning...' : 'Scan Prescription'}
+          {isScanning ? (
+            <svg className="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : 'Scan Prescription'}
         </button>
 
-        {/* Error Message */}
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </div>
 
@@ -259,9 +238,14 @@ const ScannerPage = ({ setIsAppBusy }) => {
           <h3 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">
             Scan Results
           </h3>
-          <button onClick={handleSaveMeds} className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-green-600/80 to-green-900/80 hover:from-green-600 hover:to-green-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50">
-            Save Scanned Medicines to Profile
+          <button 
+            onClick={handleSaveMeds} 
+            disabled={isSaving}
+            className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-green-600/80 to-green-900/80 hover:from-green-600 hover:to-green-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save Scanned Medicines to Profile'}
           </button>
+          
           {scanResults.length > 0 ? (
             scanResults.map((med, index) => (
               <div key={index} className="bg-white/30 p-4 rounded-lg shadow-md border border-white/40">
@@ -274,53 +258,41 @@ const ScannerPage = ({ setIsAppBusy }) => {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    {/* Save scan quick action */}
+                    {/* "Set Reminder" button */}
                     <button
-                      onClick={() => handleSave(false)}
-                      disabled={isSaving}
-                      className="px-3 py-1 bg-blue-600 text-white rounded"
-                    >
-                      {isSaving ? 'Saving...' : (scanSavedId ? 'Saved' : 'Save Scan')}
-                    </button>
-
-                    {/* Set Reminder button */}
-                    <button
-                      onClick={() => setReminderFormForIndex(index)}
-                      className="px-3 py-1 bg-green-600 text-white rounded"
+                      onClick={() => setReminderConfirmForIndex(index)}
+                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded shadow-md"
                     >
                       Set Reminder
                     </button>
                   </div>
                 </div>
 
-                {/* Inline reminder form (MVP) */}
-                {reminderFormForIndex === index && (
-                  <div className="mt-3 p-3 border rounded bg-gray-50">
-                    <label className="block text-sm font-medium mb-1">Schedule (free-text)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Every day 9:00 AM"
-                      value={reminderSchedule}
-                      onChange={(e) => setReminderSchedule(e.target.value)}
-                      className="w-full px-3 py-2 rounded border"
-                    />
+                {/* -- NEW: Smart Reminder Confirmation -- */}
+                {reminderConfirmForIndex === index && parsedSchedules[index] && (
+                  <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
+                    <p className="font-semibold">
+                      Detected a schedule of {parsedSchedules[index].times_per_day} times per day for {parsedSchedules[index].for_x_days} days.
+                    </p>
+                    <p>Would you like to schedule these reminders?</p>
                     <div className="mt-2 flex gap-2">
                       <button
-                        onClick={() => handleCreateReminderForMed(index)}
+                        onClick={() => handleConfirmReminder(index)}
                         disabled={isCreatingReminder}
-                        className="px-3 py-1 bg-indigo-600 text-white rounded"
+                        className="px-3 py-1 bg-indigo-600 text-white rounded shadow-md disabled:opacity-50"
                       >
-                        {isCreatingReminder ? 'Creating...' : 'Create Reminder'}
+                        {isCreatingReminder ? 'Saving...' : 'Confirm'}
                       </button>
                       <button
-                        onClick={() => { setReminderFormForIndex(null); setReminderSchedule(''); }}
-                        className="px-3 py-1 bg-gray-300 rounded"
+                        onClick={() => setReminderConfirmForIndex(null)}
+                        className="px-3 py-1 bg-gray-400 rounded"
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
                 )}
+                {/* --- This was the part that was broken --- */}
               </div>
             ))
           ) : (
