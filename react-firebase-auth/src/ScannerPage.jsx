@@ -208,8 +208,8 @@ const ScannerPage = ({ setIsAppBusy }) => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">
-        Prescription Scanner
+      <h2 className="text-5xl font-bold text-center animated-gradient-header">
+                Prescription Scanner
       </h2>
       
       {/* File Upload Input */}
@@ -252,8 +252,8 @@ const ScannerPage = ({ setIsAppBusy }) => {
       {/* Results Display */}
       {scanResults && (
         <div className="space-y-4">
-          <h3 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">
-            Scan Results
+          <h3 className="text-3xl font-bold text-center animated-gradient-header">
+              Scan Results
           </h3>
           <button 
             onClick={handleSaveMeds} 

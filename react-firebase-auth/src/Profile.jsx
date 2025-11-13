@@ -116,8 +116,7 @@ const Profile = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">Your Profile</h2>
-            
+            <h2 className="text-5xl font-bold text-center animated-gradient-header">Your Profile</h2>            
             <div>
                 <label htmlFor="gender-select" className="block mb-2 text-slate-800 font-semibold text-lg text-shadow-sm">Gender</label>
                 {isEditingGender ? (
