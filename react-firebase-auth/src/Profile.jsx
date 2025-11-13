@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { auth, db, functions } from './firebase'; 
 import { httpsCallable } from 'firebase/functions';
 
@@ -38,6 +38,11 @@ const Profile = () => {
         await updateDoc(userDocRef, { gender: e.target.value });
     };
 
+    const handleDeleteItem = async (field, itemToRemove) => {
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        await updateDoc(userDocRef, { [field]: arrayRemove(itemToRemove) });
+    };
+
     // --- THIS IS THE REAL 'handleAddItem' ---
     const handleAddItem = async (field, value, setValue, setError) => {
       setError(null);
@@ -48,9 +53,9 @@ const Profile = () => {
       try {
         // 1. Call the REAL validator function
         const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
-        const result = await validateMedicalTerm({ text: value });
+        const result = await validateMedicalTerm({ text: value, category: field });
 
-        const { isValid, correctedTerm } = result.data.data; // Access the nested 'data' object
+        const { isValid, correctedTerm, reason } = result.data.data; // Access the nested 'data' object
 
         if (isValid) {
           // 2. Add the *corrected* term to Firestore
@@ -59,8 +64,8 @@ const Profile = () => {
           setValue(""); // Clear the input field
         } else {
           // 3. Show a user-friendly error
-          setError(`'${value}' is not a recognized medical term.`);
-        }
+          setError(reason || `'${value}' is not a recognized medical term.`);
+        }   
 
       } catch (error) {
         console.error("Error validating term:", error);
@@ -76,6 +81,7 @@ const Profile = () => {
                 {list?.map((item, index) => (
                     <li key={index} className="bg-gradient-to-r from-purple-400/80 to-purple-700/80 text-white font-bold rounded-full px-4 py-2 shadow-md flex justify-between items-center">
                         {item}
+                        <button onClick={() => handleDeleteItem(fieldName, item)} className="ml-2 text-white font-bold">X</button>
                     </li>
                 ))}
             </ul>

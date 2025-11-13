@@ -15,29 +15,49 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- 1. THE REAL VALIDATOR FUNCTION ---
 exports.validateMedicalTerm = onCall(async (request) => {
-  const { text } = request.data;
+  const { text, category } = request.data;
 
-  if (!text) {
-    throw new HttpsError("invalid-argument", "Missing 'text' argument.");
+  if (!text || !category) {
+    throw new HttpsError("invalid-argument", "Missing 'text' or 'category' argument.");
   }
 
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
 
-  const prompt = `You are a medical data validator. A user has provided a term. Check if it is a real, valid medical allergy, medication, or pre-existing condition. Respond only with a JSON object. If it is valid, correct any spelling mistakes and return the proper term. If it is not a valid medical term, return isValid: false. Example 1 Input: 'Penicilin'. Example 1 Output: {"isValid": true, "correctedTerm": "Penicillin"}. Example 2 Input: 'hbp'. Example 2 Output: {"isValid": true, "correctedTerm": "High Blood Pressure"}. Example 3 Input: 'dad'. Example 3 Output: {"isValid": false, "correctedTerm": null}.`;
+    const categoryMap = {
+        'allergies': 'allergy',
+        'current_meds': 'medication',
+        'conditions': 'condition'
+    };
+    const singleCategory = categoryMap[category];
+    
+    const prompt = `You are a strict medical data validator. A user has provided a term and a category. Your task is to validate if the term is a real, correctly categorized medical term. Respond only with a JSON object.
+1. If the term is valid AND correctly categorized: Return {"isValid": true, "correctedTerm": "Corrected Term"}. Correct any typos.
+2. If the term is valid BUT incorrectly categorized: Return {"isValid": false, "reason": "Incorrect category. 'Term' is a [condition/medication/allergy], not a ${singleCategory}."}.
+3. If the term is not a valid medical term at all: Return {"isValid": false, "reason": "'Term' is not a recognized medical term."}.
+Example 1 (Correct):
+Input: { "text": "Penicilin", "category": "allergies" }
+Output: {"isValid": true, "correctedTerm": "Penicillin"}
+Example 2 (Incorrect Category):
+Input: { "text": "Arthritis", "category": "current_meds" }
+Output: {"isValid": false, "reason": "Incorrect category. 'Arthritis' is a condition, not a medication."}
+Example 3 (Invalid Term):
+Input: { "text": "qwerty", "category": "conditions" }
+Output: {"isValid": false, "reason": "'qwerty' is not a recognized medical term."}`;
 
-  try {
-    const result = await model.generateContent(prompt + " Input: '" + text + "'");
-    const response = await result.response;
-    let jsonText = response.text();
-    if (jsonText.startsWith("```json")) {
-        jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+    try {
+        const result = await model.generateContent(`${prompt}\n\nInput: { "text": "${text}", "category": "${category}" }`);
+        const response = await result.response;
+        let jsonText = response.text();
+        // Defensive parsing for markdown code blocks
+        if (jsonText.startsWith("```json")) {
+            jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+        }
+        const jsonResponse = JSON.parse(jsonText);
+        return { data: jsonResponse };
+    } catch (error) {
+        console.error("Error in validateMedicalTerm:", error);
+        throw new HttpsError("internal", "Failed to validate medical term.");
     }
-    const jsonResponse = JSON.parse(jsonText);
-    return { data: jsonResponse }; // Send success response
-  } catch (error) {
-    console.error("Error in validateMedicalTerm:", error);
-    throw new HttpsError("internal", "Failed to validate medical term.");
-  }
 });
 
 // --- 2. THE REAL SCANNER FUNCTION ---

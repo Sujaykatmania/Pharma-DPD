@@ -16,7 +16,8 @@ const PillNav = ({
   pillTextColor,
   onMobileMenuClick,
   initialLoadAnimation = true,
-  onItemClick // NEW: Added an onClick handler
+  onItemClick, // NEW: Added an onClick handler
+  disabled = false
 }) => {
   const resolvedPillTextColor = pillTextColor ?? baseColor;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -223,33 +224,33 @@ const PillNav = ({
   };
 
   return (
-    <div className="pill-nav-container">
+    <div className={`pill-nav-container ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
       <nav className={`pill-nav ${className}`} aria-label="Primary" style={cssVars}>
-          <a
+          <button
             className="pill-logo"
-            href={items?.[0]?.href || '#'}
             aria-label="Home"
             onMouseEnter={handleLogoEnter}
             onClick={(e) => handleItemClick(e, items?.[0]?.href)}
             ref={el => {
               logoRef.current = el;
             }}
+            disabled={disabled}
           >
             <img src={logo} alt={logoAlt} ref={logoImgRef} />
-          </a>
+          </button>
 
         <div className="pill-nav-items desktop-only" ref={navItemsRef}>
           <ul className="pill-list" role="menubar">
             {items.map((item, i) => (
               <li key={item.href || `item-${i}`} role="none">
-                  <a
+                  <button
                     role="menuitem"
-                    href={item.href}
                     className={`pill${activeHref === item.href ? ' is-active' : ''}`}
                     aria-label={item.ariaLabel || item.label}
                     onMouseEnter={() => handleEnter(i)}
                     onMouseLeave={() => handleLeave(i)}
                     onClick={(e) => handleItemClick(e, item.href)}
+                    disabled={disabled}
                   >
                     <span
                       className="hover-circle"
@@ -264,7 +265,7 @@ const PillNav = ({
                         {item.label}
                       </span>
                     </span>
-                  </a>
+                  </button>
               </li>
             ))}
           </ul>
@@ -275,6 +276,7 @@ const PillNav = ({
           onClick={toggleMobileMenu}
           aria-label="Toggle menu"
           ref={hamburgerRef}
+          disabled={disabled}
         >
           <span className="hamburger-line" />
           <span className="hamburger-line" />
@@ -285,8 +287,7 @@ const PillNav = ({
         <ul className="mobile-menu-list">
           {items.map((item, i) => (
             <li key={item.href || `mobile-item-${i}`}>
-                <a
-                  href={item.href}
+                <button
                   className={`mobile-menu-link${activeHref === item.href ? ' is-active' : ''}`}
                   onClick={(e) => {
                     e.preventDefault();
@@ -295,9 +296,10 @@ const PillNav = ({
                     // Call toggleMobileMenu() to run the animation
                     toggleMobileMenu(); 
                   }}
+                  disabled={disabled}
                 >
                   {item.label}
-                </a>
+                </button>
             </li>
           ))}
         </ul>

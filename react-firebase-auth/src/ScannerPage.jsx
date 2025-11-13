@@ -1,9 +1,26 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions, auth, db } from './firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 
-const ScannerPage = () => {
+const SkeletonLoader = () => (
+    <div className="space-y-4">
+        <div className="bg-white/20 p-4 rounded-lg shadow-md border border-white/40 animate-pulse">
+            <div className="h-4 bg-white/30 rounded w-3/4"></div>
+            <div className="h-4 bg-white/30 rounded w-1/2 mt-2"></div>
+        </div>
+        <div className="bg-white/20 p-4 rounded-lg shadow-md border border-white/40 animate-pulse">
+            <div className="h-4 bg-white/30 rounded w-3/4"></div>
+            <div className="h-4 bg-white/30 rounded w-1/2 mt-2"></div>
+        </div>
+        <div className="bg-white/20 p-4 rounded-lg shadow-md border border-white/40 animate-pulse">
+            <div className="h-4 bg-white/30 rounded w-3/4"></div>
+            <div className="h-4 bg-white/30 rounded w-1/2 mt-2"></div>
+        </div>
+    </div>
+);
+
+const ScannerPage = ({ setIsAppBusy }) => {
   const [file, setFile] = useState(null);
   const [base64Image, setBase64Image] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -51,6 +68,7 @@ const ScannerPage = () => {
 
     setError(null);
     setIsScanning(true);
+    setIsAppBusy(true);
     setScanResults(null);
     setCrossCheckWarnings([]);
     setScanSavedId(null);
@@ -85,6 +103,7 @@ const ScannerPage = () => {
     } finally {
       setIsChecking(false);
       setIsScanning(false);
+      setIsAppBusy(false);
     }
   };
 
@@ -174,6 +193,25 @@ const ScannerPage = () => {
     }
   };
 
+    const handleSaveMeds = async () => {
+    if (!scanResults) return;
+
+    const userDocRef = doc(db, "users", auth.currentUser.uid);
+    const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
+
+    for (const med of scanResults) {
+      try {
+        const result = await validateMedicalTerm({ text: med.name, category: 'medication' });
+        const { isValid, correctedTerm } = result.data.data;
+        if (isValid) {
+          await updateDoc(userDocRef, { current_meds: arrayUnion(correctedTerm) });
+        }
+      } catch (error) {
+        console.error("Error validating/saving med:", error);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">
@@ -206,19 +244,14 @@ const ScannerPage = () => {
           disabled={isScanning || !file}
           className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
         >
-          {isScanning ? (
-            <svg className="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            'Scan Prescription'
-          )}
+          {isScanning ? 'Scanning...' : 'Scan Prescription'}
         </button>
 
         {/* Error Message */}
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </div>
+
+      {isScanning && <SkeletonLoader />}
 
       {/* Results Display */}
       {scanResults && (
@@ -226,6 +259,9 @@ const ScannerPage = () => {
           <h3 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50">
             Scan Results
           </h3>
+          <button onClick={handleSaveMeds} className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-green-600/80 to-green-900/80 hover:from-green-600 hover:to-green-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50">
+            Save Scanned Medicines to Profile
+          </button>
           {scanResults.length > 0 ? (
             scanResults.map((med, index) => (
               <div key={index} className="bg-white/30 p-4 rounded-lg shadow-md border border-white/40">

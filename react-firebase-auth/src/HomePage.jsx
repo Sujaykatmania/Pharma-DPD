@@ -15,6 +15,7 @@ import { RemindersPage } from './RemindersPage.jsx';
 const HomePage = ({ user }) => {
   // State to track which page is active
   const [activePage, setActivePage] = useState('#profile');
+  const [isAppBusy, setIsAppBusy] = useState(false);
 
   const handleSignOut = () => {
       signOut(auth).catch((error) => {
@@ -36,7 +37,7 @@ const HomePage = ({ user }) => {
         return <Profile />;
       // --- FIX: Render the REAL ScannerPage ---
       case '#scanner':
-        return <ScannerPage />;
+        return <ScannerPage setIsAppBusy={setIsAppBusy} />;
       case '#reminders':
         return <RemindersPage />;
       default:
@@ -59,6 +60,7 @@ const HomePage = ({ user }) => {
             pillTextColor="#0d0e1b" // Active pill text color (dark)
             hoveredPillTextColor="#0d0e1b" // Hovered pill text color (dark)
             initialLoadAnimation={false} // Disable default load animation
+            disabled={isAppBusy} // Pass down the app busy state
           />
           {/* --- End PillNav Component --- */}
           
