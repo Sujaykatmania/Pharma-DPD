@@ -99,7 +99,7 @@ public/build/
 # Gatsby build output
 .cache/
 # Add storybook build output directory here if you are using Storybook
-public
+# public
 
 # SvelteKit build output
 .svelte-kit
@@ -113,7 +113,7 @@ build
 
 # Gatsby files
 .cache/
-public
+# public
 
 # vuepress build output
 .vuepress/dist
