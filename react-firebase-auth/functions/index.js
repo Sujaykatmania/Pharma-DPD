@@ -146,7 +146,7 @@ exports.parseSchedule = onCall(async (request) => {
 
   const prompt = `You are an intelligent medical schedule parser. A user has provided a dosage and a duration string. Your task is to parse these into a structured JSON object. Respond only with a JSON object.
 1.  **times_per_day**: Must be a number.
-2.  **for_x_days**: Must be a number.
+2.  **for_x_days**: Must be a number. If the duration is ongoing or not specified, this must be null.
 Example 1:
 Dosage: "1 pill, twice a day"
 Duration: "14 days"
@@ -162,7 +162,11 @@ Output: {"times_per_day": 4, "for_x_days": 7}
 Example 4 (Uncertain):
 Dosage: "As needed for pain"
 Duration: "3 days supply"
-Output: {"times_per_day": 0, "for_x_days": 3, "is_prn": true }`;
+Output: {"times_per_day": 0, "for_x_days": 3, "is_prn": true }
+Example 5 (Ongoing):
+Dosage: "One tablet daily"
+Duration: "Ongoing"
+Output: {"times_per_day": 1, "for_x_days": null}`;
 
   try {
     const result = await model.generateContent(`${prompt}\n\nDosage: "${dosage}"\nDuration: "${duration}"`);

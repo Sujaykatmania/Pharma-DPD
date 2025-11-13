@@ -106,9 +106,11 @@ const RemindersPage = () => {
                       <div>
                         <p className="text-xl font-bold text-slate-800">{r.medName}</p>
                         <p className="text-slate-700">
-                          {r.timesPerDay > 0 
-                            ? `${r.timesPerDay} times per day for ${r.durationInDays} days`
-                            : `As needed (PRN) for ${r.durationInDays} days`
+                          {r.isOngoing
+                            ? `${r.timesPerDay} times per day (Ongoing)`
+                            : r.timesPerDay > 0
+                              ? `${r.timesPerDay} times per day for ${r.durationInDays} days`
+                              : `As needed (PRN) for ${r.durationInDays} days`
                           }
                         </p>
                         <p className="text-slate-700"><strong>Dosage:</strong> {r.dosage}</p>

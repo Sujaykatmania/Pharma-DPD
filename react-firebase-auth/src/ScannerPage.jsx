@@ -87,6 +87,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
 
       const newMedicines = result?.data?.data?.medicines || [];
       setScanResults(newMedicines);
+      setIsScanning(false);
 
       // Kick off cross-check
       setIsChecking(true);
@@ -118,7 +119,6 @@ const ScannerPage = ({ setIsAppBusy }) => {
       console.error("Error during scan or cross-check:", err);
       setError(err?.message || "An error occurred. Please try again.");
     } finally {
-      setIsScanning(false);
       setIsAppBusy(false);
     }
   };
@@ -145,6 +145,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
         medName: med.name,
         dosage: med.dosage,
         durationInDays: schedule.for_x_days,
+        isOngoing: schedule.for_x_days === null,
         timesPerDay: schedule.times_per_day,
         isPRN: schedule.is_prn || false, // 'as needed'
         createdAt: serverTimestamp(),
@@ -272,7 +273,10 @@ const ScannerPage = ({ setIsAppBusy }) => {
                 {reminderConfirmForIndex === index && parsedSchedules[index] && (
                   <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
                     <p className="font-semibold">
-                      Detected a schedule of {parsedSchedules[index].times_per_day} times per day for {parsedSchedules[index].for_x_days} days.
+                    {parsedSchedules[index].for_x_days !== null
+                        ? `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for ${parsedSchedules[index].for_x_days} days.`
+                        : `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for an ongoing duration. This reminder will be 'Active' until you pause it.`
+                    }                    
                     </p>
                     <p>Would you like to schedule these reminders?</p>
                     <div className="mt-2 flex gap-2">
