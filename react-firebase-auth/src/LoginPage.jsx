@@ -32,6 +32,8 @@ const LoginPage = () => {
                 });
             }
         } catch (error) {
+
+            console.error("Google Sign-In Error:", error);
             setError('Failed to sign in with Google. Please try again.');
         }
     };
