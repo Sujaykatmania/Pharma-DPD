@@ -94,7 +94,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
                         stage === 'reveal' ? 'opacity-100' : 'opacity-0'
                     } z-10`}
                 >
-                    <h2 className="text-gray-450 text-3xl font-bold whitespace-nowrap text-shadow-sm">
+                    <h2 className="text-gray-450 text-2xl font-bold whitespace-nowrap text-shadow-sm">
                         Doctors Prescription Deciphered
                     </h2>
                 </div>
