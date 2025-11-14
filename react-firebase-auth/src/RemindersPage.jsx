@@ -12,6 +12,7 @@ const RemindersPage = () => {
   const [newManualSchedule, setNewManualSchedule] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
   const [manualError, setManualError] = useState(null);
+  const [error, setError] = useState(null);
 
   // This useEffect (from your code) is perfect. It correctly
   // listens to both the user doc and the reminders sub-collection.
@@ -79,6 +80,19 @@ const RemindersPage = () => {
         await deleteDoc(reminderDocRef);
       } catch (error) {
         console.error("Error deleting reminder: ", error);
+      }
+    }
+  };
+
+  const handleMarkAsComplete = async (id) => {
+    if (auth.currentUser) {
+      const reminderDocRef = doc(db, "users", auth.currentUser.uid, "reminders", id);
+      try {
+        setError(null);
+        await deleteDoc(reminderDocRef);
+      } catch (error) {
+        console.error("Error marking reminder as complete: ", error);
+        setError("Failed to mark reminder as complete. Please try again.");
       }
     }
   };
@@ -182,6 +196,7 @@ const RemindersPage = () => {
             <h3 className="text-3xl font-bold text-center animated-gradient-header mb-4">
               Scheduled Reminders
             </h3>
+            {error && <p className="text-red-500 text-center mb-4">{error}</p>}
             {reminders.length === 0 ? (
               <p className="text-center text-slate-700">No reminders yet. Create one from the Scanner page after confirming a scan.</p>
             ) : (
@@ -203,17 +218,23 @@ const RemindersPage = () => {
                         <p className="text-slate-700"><strong>Dosage:</strong> {r.dosage}</p>
                       </div>
                       <div className="flex items-center">
-                        <button 
+                        <button
                           onClick={() => handleToggleReminder(r.id, r.isActive)}
                           className={`px-3 py-1 rounded-full text-white font-semibold shadow-md ${
-                            r.isActive 
-                              ? 'bg-green-600 hover:bg-green-700' 
+                            r.isActive
+                              ? 'bg-green-600 hover:bg-green-700'
                               : 'bg-gray-500 hover:bg-gray-600'
                           }`}
                         >
                           {r.isActive ? 'Active' : 'Paused'}
                         </button>
-                        <button 
+                        <button
+                          onClick={() => handleMarkAsComplete(r.id)}
+                          className="ml-2 px-4 py-2 bg-gradient-to-br from-indigo-500/80 to-indigo-700/80 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
+                        >
+                          Mark as Complete
+                        </button>
+                        <button
                           onClick={() => handleDeleteReminder(r.id)}
                           className="ml-2 text-red-500 font-extrabold text-2xl hover:text-red-700"
                           aria-label="Delete reminder"
