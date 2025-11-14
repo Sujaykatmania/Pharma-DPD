@@ -148,7 +148,7 @@ const RemindersPage = () => {
           <button
             onClick={handleManualAdd}
             disabled={isSavingManual}
-            className="w-full py-2 px-4 bg-gradient-to-br from-indigo-600/80 to-indigo-900/80 hover:from-indigo-600 hover:to-indigo-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
+            className="w-full py-2 px-4 bg-gradient-to-br from-indigo-600/80 to-purple-900/80 hover:from-indigo-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
           >
             {isSavingManual ? 'Saving...' : 'Save Manual Reminder'}
           </button>

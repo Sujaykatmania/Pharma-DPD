@@ -97,7 +97,7 @@ const Profile = () => {
                 />
                 <button 
                   type="submit" 
-                  className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
                   disabled={loading === fieldName}
                 >
                   {loading === fieldName ? (
@@ -140,7 +140,7 @@ const Profile = () => {
                             value={userData.gender || 'Not set'}
                             className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md disabled:opacity-70"
                         />
-                        <button onClick={() => setIsEditingGender(true)} className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-blue-900/80 hover:from-blue-600 hover:to-blue-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95">
+                        <button onClick={() => setIsEditingGender(true)} className="px-4 py-2 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95">
                             Edit
                         </button>
                     </div>
