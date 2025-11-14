@@ -1,8 +1,15 @@
 // --- THIS IS THE FINAL AI BACKEND ---
+const functions = require("firebase-functions");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// --- FIX: This is the new, v5 way to get secrets ---
+// We define the secret, but we don't access it here.
+const { defineString } = require("firebase-functions/params");
+const geminiKey = defineString("GEMINI_API_KEY");
+// --------------------------------------------------
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -11,7 +18,7 @@ const db = admin.firestore();
 setGlobalOptions({ region: "asia-south1" });
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(geminiKey.value());
 
 // --- 1. THE REAL VALIDATOR FUNCTION ---
 exports.validateMedicalTerm = onCall(async (request) => {

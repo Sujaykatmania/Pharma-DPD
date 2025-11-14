@@ -7,7 +7,6 @@ import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyAYcfF9wWuqXsqFWgNxHFbN9Z8vAQE4gek",
   authDomain: "pharma-dpd.firebaseapp.com",
@@ -21,21 +20,16 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize all three services
+// Initialize services
 const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, "asia-south1"); 
 
-// Connect to Emulators (this is our "localhost" fix)
+// Connect to Emulators if on localhost
 if (window.location.hostname === 'localhost') {
-  console.log("Using Firebase Emulators");
   connectAuthEmulator(auth, 'http://localhost:9099');
   connectFirestoreEmulator(db, 'localhost', 8080);
   connectFunctionsEmulator(functions, 'localhost', 5001);
-} else {
-  console.log("Using Production Firebase");
 }
 
-// --- THIS IS THE FIX ---
-// This line was missing, which caused the "does not provide an export" error.
 export { auth, db, app, functions };
