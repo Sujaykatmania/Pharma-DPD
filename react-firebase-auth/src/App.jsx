@@ -1,42 +1,50 @@
-import React, { useState, useEffect } from 'react'; // <-- We need 'React' for hooks
+import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from './firebase'; 
-import { LoginPage } from './LoginPage.jsx'; 
-import { HomePage } from './HomePage.jsx'; 
-import { SplashScreen } from './SplashScreen.jsx'; // <-- Jules's new import
+import { auth, db } from './firebase';
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { LoginPage } from './LoginPage.jsx';
+import { HomePage } from './HomePage.jsx';
+import { SplashScreen } from './SplashScreen.jsx';
 
 function App() {
-  // --- All three states are needed ---
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showSplash, setShowSplash] = useState(true); // <-- Jules's new state
+  const [showSplash, setShowSplash] = useState(true);
 
-  // --- This is YOUR superior useEffect from 'main' ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is signed in
+        // User is signed in, check for user profile
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          // Create the user document if it doesn't exist
+          await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            gender: "",
+            allergies: [],
+            current_meds: [],
+            conditions: []
+          });
+        }
         setUser(user);
       } else {
         // User is signed out
         setUser(null);
       }
-      // Finished loading
       setLoading(false);
     });
 
-    // Cleanup function
     return () => unsubscribe();
-  }, []); 
+  }, []);
 
-  // --- This is the new, combined render logic ---
-
-  // 1. Show Splash Screen first (from Jules)
   if (showSplash) {
     return <SplashScreen onAnimationComplete={() => setShowSplash(false)} />;
   }
 
-  // 2. Show YOUR styled Loading screen (from 'main')
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -45,12 +53,10 @@ function App() {
     );
   }
 
-  // 3. The rest of the logic, which was the same
   if (!user) {
     return <LoginPage />;
   }
 
-  // 4. Show the HomePage
   return <HomePage user={user} />;
 }
 

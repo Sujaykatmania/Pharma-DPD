@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "dev:emulators": "firebase emulators:start",
-    "deploy": "vite build && firebase deploy --only hosting,functions"
+    "deploy": "vite build && firebase deploy --only hosting,functions,firestore"
   },
   "dependencies": {
     "firebase": "^12.5.0",

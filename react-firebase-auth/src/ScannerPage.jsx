@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions, auth, db } from './firebase';
+import { functions, db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, where, getDocs } from 'firebase/firestore';
-import CameraComponent from './CameraComponent'; // --- NEW: Import the CameraComponent ---
+import CameraComponent from './CameraComponent';
 
 const SkeletonLoader = () => (
     <div className="space-y-4">
-        {/* ... (skeleton loader code is unchanged) ... */}
         <div className="bg-white/20 p-4 rounded-lg shadow-md border border-white/40 animate-pulse">
             <div className="h-4 bg-white/30 rounded w-3/4"></div>
             <div className="h-4 bg-white/30 rounded w-1/2 mt-2"></div>
@@ -22,7 +21,7 @@ const SkeletonLoader = () => (
     </div>
 );
 
-const ScannerPage = ({ setIsAppBusy }) => {
+const ScannerPage = ({ user, setIsAppBusy }) => {
     const [file, setFile] = useState(null);
     const [base64Image, setBase64Image] = useState(null);
     const [isScanning, setIsScanning] = useState(false);
@@ -31,18 +30,15 @@ const ScannerPage = ({ setIsAppBusy }) => {
     const [crossCheckWarnings, setCrossCheckWarnings] = useState([]);
     const [isChecking, setIsChecking] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [medsHaveBeenSaved, setMedsHaveBeenSaved] = useState(false); // --- NEW ---
-    
-    // --- REMINDER STATE ---
+    const [medsHaveBeenSaved, setMedsHaveBeenSaved] = useState(false);
+
     const [isCreatingReminder, setIsCreatingReminder] = useState(false);
     const [parsedSchedules, setParsedSchedules] = useState({});
     const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null);
     const [addedReminders, setAddedReminders] = useState([]);
 
-    // --- NEW: State to control the camera modal ---
     const [isCameraOpen, setIsCameraOpen] = useState(false);
 
-    // --- NEW: Function to reset states, used by both file/camera ---
     const resetScanState = () => {
         setError(null);
         setScanResults(null);
@@ -50,13 +46,12 @@ const ScannerPage = ({ setIsAppBusy }) => {
         setReminderConfirmForIndex(null);
         setParsedSchedules({});
         setAddedReminders([]);
-        setMedsHaveBeenSaved(false); // --- NEW ---
+        setMedsHaveBeenSaved(false);
     };
 
-    // 1. When a user selects a file
     const handleFileChange = (e) => {
-        resetScanState(); // --- MODIFIED: Use the reset function ---
-        setBase64Image(null); // Clear previous preview
+        resetScanState();
+        setBase64Image(null);
         const selectedFile = e.target.files[0];
 
         if (selectedFile) {
@@ -71,26 +66,23 @@ const ScannerPage = ({ setIsAppBusy }) => {
                 setError("Failed to read the image file.");
             };
         } else {
-            setFile(null); // User cancelled file picker
+            setFile(null);
         }
     };
 
-    // --- NEW: Function to handle photo taken from CameraComponent ---
     const handlePhotoCapture = (capturedImageSrc) => {
-        resetScanState(); // Reset all results
-        setFile(null); // We don't have a file object, just base64
-        setBase64Image(capturedImageSrc); // Set the new image
-        setIsCameraOpen(false); // Close the camera
+        resetScanState();
+        setFile(null);
+        setBase64Image(capturedImageSrc);
+        setIsCameraOpen(false);
     };
 
-    // --- NEW: Function to cancel the camera ---
     const handleCancelCamera = () => {
         setIsCameraOpen(false);
     };
 
-    // 2. When the "Scan" button is clicked
     const handleScan = async () => {
-        if (!base64Image) { // --- MODIFIED: Check for base64Image, not file ---
+        if (!base64Image) {
             setError("Please select an image first.");
             return;
         }
@@ -119,7 +111,6 @@ const ScannerPage = ({ setIsAppBusy }) => {
             setScanResults(newMedicines);
             setIsScanning(false);
 
-            // Kick off cross-check
             setIsChecking(true);
             const crossCheckMedication = httpsCallable(functions, 'crossCheckMedication');
             const crossCheckResult = await crossCheckMedication({ newMedicines: newMedicines });
@@ -127,7 +118,6 @@ const ScannerPage = ({ setIsAppBusy }) => {
             setCrossCheckWarnings(interactions);
             setIsChecking(false);
 
-            // Parse schedules for all new meds
             if (newMedicines.length > 0) {
                 const schedulePromises = newMedicines.map((med) => {
                     if (med.dosage && med.duration) {
@@ -153,9 +143,8 @@ const ScannerPage = ({ setIsAppBusy }) => {
         }
     };
 
-    // --- (handleConfirmReminder function is unchanged) ---
     const handleConfirmReminder = async (index) => {
-        if (!auth?.currentUser) {
+        if (!user) {
             setError("You must be signed in to set reminders.");
             return;
         }
@@ -168,37 +157,33 @@ const ScannerPage = ({ setIsAppBusy }) => {
         }
 
         setIsCreatingReminder(true);
-        setError(null); // Clear previous errors
+        setError(null);
 
         try {
-            // --- DEDUPLICATION LOGIC ---
-            const remindersRef = collection(db, `users/${auth.currentUser.uid}/reminders`);
+            const remindersRef = collection(db, `users/${user.uid}/reminders`);
             const q = query(remindersRef, where("medName", "==", med.name));
             const existingDocs = await getDocs(q);
 
             if (!existingDocs.empty) {
                 setError("A reminder for this medicine already exists.");
                 setIsCreatingReminder(false);
-                return; // Stop execution
+                return;
             }
-            // --- END DEDUPLICATION ---
 
-            // Create a new document in the 'reminders' sub-collection
             const reminderDoc = {
                 medName: med.name,
                 dosage: med.dosage,
                 durationInDays: schedule.for_x_days,
                 isOngoing: schedule.for_x_days === null,
                 timesPerDay: schedule.times_per_day,
-                isPRN: schedule.is_prn || false, // 'as needed'
+                isPRN: schedule.is_prn || false,
                 createdAt: serverTimestamp(),
                 isActive: true
             };
 
             await addDoc(remindersRef, reminderDoc);
-            
+
             setAddedReminders(prev => [...prev, index]);
-            // Close the confirmation box
             setReminderConfirmForIndex(null);
 
         } catch (e) {
@@ -207,13 +192,12 @@ const ScannerPage = ({ setIsAppBusy }) => {
         }
         setIsCreatingReminder(false);
     };
-    
-    // --- (handleSaveMeds function is unchanged) ---
+
     const handleSaveMeds = async () => {
-        if (!scanResults || !auth.currentUser) return;
+        if (!scanResults || !user) return;
 
         setIsSaving(true);
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        const userDocRef = doc(db, "users", user.uid);
         const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
 
         let savedCount = 0;
@@ -231,27 +215,24 @@ const ScannerPage = ({ setIsAppBusy }) => {
         }
         console.log(`Successfully saved ${savedCount} medicines to profile.`);
         setIsSaving(false);
-        setMedsHaveBeenSaved(true); // --- NEW ---
+        setMedsHaveBeenSaved(true);
     };
 
     return (
         <div className="space-y-6">
-            {/* --- NEW: Conditionally render the camera modal --- */}
             {isCameraOpen && (
-                <CameraComponent 
+                <CameraComponent
                     onPhotoTaken={handlePhotoCapture}
                     onCancel={handleCancelCamera}
                 />
             )}
 
             <h2 className="text-5xl font-bold text-center animated-gradient-header">
-                    Prescription Scanner
+                Prescription Scanner
             </h2>
-            
-            {/* File Upload Input */}
+
             <div className="flex flex-col items-center gap-4">
 
-                {/* --- NEW: Button to open the camera --- */}
                 <button
                     onClick={() => setIsCameraOpen(true)}
                     className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
@@ -260,8 +241,7 @@ const ScannerPage = ({ setIsAppBusy }) => {
                 </button>
 
                 <p className="text-slate-700 text-shadow-sm my-1">-- OR --</p>
-                
-                {/* --- MODIFIED: Added a label for clarity --- */}
+
                 <label className="text-slate-800 text-shadow-sm">Choose a file from your device:</label>
                 <input
                     type="file"
@@ -271,18 +251,17 @@ const ScannerPage = ({ setIsAppBusy }) => {
                                 file:text-sm file:font-semibold file:bg-white/30 file:text-slate-800
                                 hover:file:bg-white/50 text-slate-800 text-shadow-sm"
                 />
-                
+
                 {base64Image && (
-                    <img 
-                        src={base64Image} 
-                        alt="Prescription preview" 
+                    <img
+                        src={base64Image}
+                        alt="Prescription preview"
                         className="mt-4 w-full max-w-md rounded-lg shadow-lg border border-white/30"
                     />
                 )}
 
                 <button
                     onClick={handleScan}
-                    // --- MODIFIED: Disable based on base64Image, not file ---
                     disabled={isScanning || !base64Image}
                     className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
                 >
@@ -299,27 +278,23 @@ const ScannerPage = ({ setIsAppBusy }) => {
 
             {isScanning && <SkeletonLoader />}
 
-            {/* --- (Results Display section is unchanged) --- */}
             {scanResults && (
                 <div className="space-y-4">
                     <h3 className="text-3xl font-bold text-center animated-gradient-header">
-                            Scan Results
+                        Scan Results
                     </h3>
-                    <button 
-                        onClick={handleSaveMeds} 
-                        // --- MODIFIED ---
+                    <button
+                        onClick={handleSaveMeds}
                         disabled={isSaving || medsHaveBeenSaved}
-                        // --- MODIFIED: Added disabled styles for gray-out ---
                         className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-green-600/80 to-green-900/80 hover:from-green-600 hover:to-green-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:from-gray-500 disabled:to-gray-600 disabled:shadow-none disabled:hover:from-gray-600"
                     >
-                        {/* --- MODIFIED --- */}
-                        {isSaving 
-                            ? 'Saving...' 
-                            : medsHaveBeenSaved 
-                                ? 'Medicines Saved' 
+                        {isSaving
+                            ? 'Saving...'
+                            : medsHaveBeenSaved
+                                ? 'Medicines Saved'
                                 : 'Save Scanned Medicines to Profile'}
                     </button>
-                    
+
                     {scanResults.length > 0 ? (
                         scanResults.map((med, index) => (
                             <div key={index} className="bg-white/30 p-4 rounded-lg shadow-md border border-white/40">
@@ -350,14 +325,13 @@ const ScannerPage = ({ setIsAppBusy }) => {
                                     </div>
                                 </div>
 
-                                {/* -- NEW: Smart Reminder Confirmation -- */}
                                 {reminderConfirmForIndex === index && parsedSchedules[index] && (
                                     <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
                                         <p className="font-semibold">
-                                        {parsedSchedules[index].for_x_days !== null
-                                            ? `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for ${parsedSchedules[index].for_x_days} days.`
-                                            : `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for an ongoing duration. This reminder will be 'Active' until you pause it.`
-                                        }                                     
+                                            {parsedSchedules[index].for_x_days !== null
+                                                ? `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for ${parsedSchedules[index].for_x_days} days.`
+                                                : `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for an ongoing duration. This reminder will be 'Active' until you pause it.`
+                                            }
                                         </p>
                                         <p>Would you like to schedule these reminders?</p>
                                         <div className="mt-2 flex gap-2">
@@ -377,7 +351,6 @@ const ScannerPage = ({ setIsAppBusy }) => {
                                         </div>
                                     </div>
                                 )}
-                                {/* --- This was the part that was broken --- */}
                             </div>
                         ))
                     ) : (
@@ -386,7 +359,6 @@ const ScannerPage = ({ setIsAppBusy }) => {
                 </div>
             )}
 
-            {/* --- (Cross-Check Results section is unchanged) --- */}
             {isChecking && (
                 <div className="text-center">
                     <svg className="animate-spin h-8 w-8 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

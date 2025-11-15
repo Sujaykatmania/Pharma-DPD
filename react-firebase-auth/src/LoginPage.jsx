@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from './firebase';
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth } from './firebase';
 import Iridescence from './Iridescence';
 
 const LoginPage = () => {
@@ -14,25 +13,8 @@ const LoginPage = () => {
         setError(null);
         const provider = new GoogleAuthProvider();
         try {
-            const result = await signInWithPopup(auth, provider);
-            const user = result.user;
-
-            const userDocRef = doc(db, "users", user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-
-            if (!userDocSnap.exists()) {
-                await setDoc(userDocRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    displayName: user.displayName,
-                    gender: "",
-                    allergies: [],
-                    current_meds: [],
-                    conditions: []
-                });
-            }
+            await signInWithPopup(auth, provider);
         } catch (error) {
-
             console.error("Google Sign-In Error:", error);
             setError('Failed to sign in with Google. Please try again.');
         }
@@ -44,18 +26,7 @@ const LoginPage = () => {
         if (isRegisterMode) {
             // Register
             try {
-                const result = await createUserWithEmailAndPassword(auth, email, password);
-                const user = result.user;
-                const userDocRef = doc(db, "users", user.uid);
-                await setDoc(userDocRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    displayName: user.email,
-                    gender: "",
-                    allergies: [],
-                    current_meds: [],
-                    conditions: []
-                });
+                await createUserWithEmailAndPassword(auth, email, password);
             } catch (error) {
                 handleAuthError(error);
             }
@@ -90,34 +61,20 @@ const LoginPage = () => {
     };
 
     return (
-            /* * FIX: We are now using the REAL Iridescence component.
-            * Removed 'iridescent-bg' and added 'relative' to the div.
-            */
-            <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
-                {/* This is the new WebGL background! */}
-                <Iridescence 
-                color={[0.8, 0.8, 1]} /* A nice purplish-blue, [R,G,B] from 0 to 1 */
-                speed={0.5} 
-                amplitude={0.2} 
+        <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+            <Iridescence
+                color={[0.8, 0.8, 1]}
+                speed={0.5}
+                amplitude={0.2}
                 mouseReact={true}
-                />           
-            {/* Kept 'shadow-2xl' and 'backdrop-blur-xl' from your 'main' branch */}
+            />
             <div className="w-full max-w-sm p-8 space-y-6 bg-white/20 shadow-2xl border border-white/30 rounded-2xl backdrop-filter backdrop-blur-xl">
-                
-                {/* FIX: Reverted to pill shape (removed 'w-fit', added 'max-w-xs').
-                    REMOVED the vertical line div as you requested.
-                */}
                 <div className="relative flex justify-center bg-white/30 rounded-full py-4 px-8 shadow-lg max-w-xs mx-auto">
-                    {/* The SVG icon (z-10 no longer needed) */}
                     <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7v-2h4V7h2v4h4v2h-4v4h-2z" fill="currentColor"/>
                     </svg>
                 </div>
-                
-                {/* FIX: Added 'mb-4' to fix the text overlap from image_cda05c.png */}
                 <h2 className="text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/50 mb-4">{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
-                
-                {/* FIX: Removed the failed 'pt-2' from the form */}
                 <form onSubmit={handleEmailPasswordAction} className="space-y-4">
                     <input
                         type="email"
@@ -134,8 +91,6 @@ const LoginPage = () => {
                         className="w-full px-4 py-2 text-slate-800 placeholder-gray-700 bg-white/30 border border-white/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                     {error && <p className="text-red-500 bg-white/80 rounded-md p-2 text-sm text-center">{error}</p>}
-                    
-                    {/* Kept the 'liquid glass' gradient button */}
                     <button
                         type="submit"
                         className="w-full py-2 px-4 bg-gradient-to-br from-blue-400/80 to-blue-600/80 hover:from-blue-400 hover:to-blue-600 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
@@ -153,8 +108,6 @@ const LoginPage = () => {
                     <span className="flex-shrink mx-4 text-white">Or</span>
                     <div className="flex-grow border-t border-white/30"></div>
                 </div>
-                
-                {/* Kept the 'liquid glass' gradient Google button */}
                 <button
                     onClick={handleGoogleSignIn}
                     className="w-full flex items-center justify-center py-2 px-4 bg-gradient-to-br from-white/90 to-white/50 hover:from-white/100 hover:to-white/70 text-slate-800 font-medium rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
@@ -163,7 +116,7 @@ const LoginPage = () => {
                         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.802 6.842C34.553 2.964 29.613 1 24 1C10.745 1 0 11.745 0 25s10.745 24 24 24s24-10.745 24-24c0-1.282-.124-2.528-.352-3.725H43.611z"/>
                         <path fill="#FF3D00" d="M6.306 14.691c-1.258 3.524-1.258 7.491 0 11.015L1.31 32.553C-1.218 26.21 2.38 10.153 10.59 4.414l5.122 5.122C12.83 11.037 8.35 12.33 6.306 14.691z"/>
                         <path fill="#4CAF50" d="M24 48c5.613 0 10.553-1.964 14.802-5.198l-5.198-5.198c-2.12 1.885-4.901 3.038-7.904 3.038-5.223 0-9.651-3.343-11.303-8H1.31l5.021 7.86C10.745 44.255 16.715 48 24 48z"/>
-                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.457-2.457 4.476-4.605 5.75l5.198 5.198c4.32-3.787 7.273-9.522 7.273-16.141c0-1.282-.124-2.528-.352-3.725z"/>
+f                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.457-2.457 4.476-4.605 5.75l5.198 5.198c4.32-3.787 7.273-9.522 7.273-16.141c0-1.282-.124-2.528-.352-3.725z"/>
                     </svg>
                     Sign in with Google
                 </button>
