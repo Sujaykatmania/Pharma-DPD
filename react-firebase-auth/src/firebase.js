@@ -8,13 +8,13 @@ import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAYcfF9wWuqXsqFWgNxHFbN9Z8vAQE4gek",
-  authDomain: "pharma-dpd.firebaseapp.com",
-  projectId: "pharma-dpd",
-  storageBucket: "pharma-dpd.firebasestorage.app",
-  messagingSenderId: "918004985669",
-  appId: "1:918004985669:web:f9d48e47e64caa32c5182c",
-  measurementId: "G-DCL3M7FP6W"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
