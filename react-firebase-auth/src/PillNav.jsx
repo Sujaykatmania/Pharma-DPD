@@ -242,10 +242,12 @@ const PillNav = ({
         <div className="pill-nav-items desktop-only" ref={navItemsRef}>
           <ul className="pill-list" role="menubar">
             {items.map((item, i) => (
-              <li key={item.href || `item-${i}`} role="none">
+              // FIX: Added 'w-full' to make the list item take full width
+              <li key={item.href || `item-${i}`} role="none" className="w-full"> 
                   <button
                     role="menuitem"
-                    className={`pill${activeHref === item.href ? ' is-active' : ''}`}
+                    // FIX: Added 'w-full' to make the button take full width
+                    className={`pill w-full ${activeHref === item.href ? ' is-active' : ''}`}
                     aria-label={item.ariaLabel || item.label}
                     onMouseEnter={() => handleEnter(i)}
                     onMouseLeave={() => handleLeave(i)}
@@ -286,9 +288,11 @@ const PillNav = ({
       <div className="mobile-menu-popover mobile-only" ref={mobileMenuRef} style={cssVars}>
         <ul className="mobile-menu-list">
           {items.map((item, i) => (
-            <li key={item.href || `mobile-item-${i}`}>
+            // FIX: Added 'w-full' here too, just in case
+            <li key={item.href || `mobile-item-${i}`} className="w-full">
                 <button
-                  className={`mobile-menu-link${activeHref === item.href ? ' is-active' : ''}`}
+                  // FIX: Added 'w-full' here too, just in case
+                  className={`mobile-menu-link w-full text-left ${activeHref === item.href ? ' is-active' : ''}`}
                   onClick={(e) => {
                     e.preventDefault();
                     onItemClick(item.href);
