@@ -85,32 +85,41 @@ exports.scanPrescription = onCall(async (request) => {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
 
   const prompt = `You are a strict medical document analyst.
-  
-  Step 1: Visual Security Verification.
-  Analyze ALL provided images. You must look for visual markers that prove these are photos of physical medical documents.
-  Look for:
-  - Physical document edges or background (showing it's a photo of a paper).
-  - A Doctor's handwritten signature or stamp.
-  - A Clinic/Hospital Letterhead or official logo.
-  - Handwriting or printed text typical of prescriptions.
-  
-  If these visual markers are largely missing, or if the images appear to be random screenshots, digital text snippets, or irrelevant photos, REJECT the request.
-  
-  Step 2: Data Extraction & Aggregation.
-  If the images are valid prescriptions:
-  - Extract medicine details from ALL pages combined.
+
+  Step 1: The Gatekeeper (Strict Visual Verification).
+  Scan the TOP 25% of the provided image(s). You must identify at least TWO of the following "Official Markers" to validate this as a legitimate prescription:
+  1. A Hospital/Clinic Name (e.g., "City General", "Dr. Smith's Clinic", printed letterhead).
+  2. Contact Details (Phone number, Address, Email in a header format).
+  3. A Doctor's Name or Registration Number (e.g., "Dr. John Doe", "Reg No: 12345").
+
+  Decision Logic:
+  - If these markers are MISSING or insufficient: STOP immediately. REJECT the image.
+    Return: {"isPrescription": false, "reason": "Missing official clinic header or doctor details."}
+  - If these markers are PRESENT: PROCEED to Step 2.
+
+  Step 2: Data Extraction.
+  - Extract the "clinicDetails" (the detected name, address, or doctor's details that passed Step 1).
+  - Extract all medicine details from ALL pages combined.
   - Merge the list into a single array of medicines.
   - For each medicine, extract: name, dosage, duration, genericAlternative.
-  
+
   Response Format (JSON ONLY):
-  If Rejected: {"isPrescription": false, "medicines": []}
-  If Accepted: {"isPrescription": true, "medicines": [{ "name": "...", "dosage": "...", "duration": "...", "genericAlternative": "..." }, ...]}
+  If Rejected: {"isPrescription": false, "reason": "..."}
+  If Accepted: 
+  {
+    "isPrescription": true,
+    "clinicDetails": "Extracted Header Info",
+    "medicines": [
+      { "name": "...", "dosage": "...", "duration": "...", "genericAlternative": "..." },
+      ...
+    ]
+  }
   `;
 
   const imageParts = images.map((base64Data) => ({
     inlineData: {
-      mimeType: base64Data.startsWith("data:image/png") ? "image/png" : "image/jpeg", // Basic check, though we stripped prefix in frontend, sometimes it might be passed differently. Let's assume raw base64 from frontend update.
-      data: base64Data, // Frontend sends raw base64 string now
+      mimeType: base64Data.startsWith("data:image/png") ? "image/png" : "image/jpeg",
+      data: base64Data,
     },
   }));
 

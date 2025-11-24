@@ -192,7 +192,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
             const result = await scanPrescription({ images: imagesData });
 
             if (result?.data?.data?.isPrescription === false) {
-                setError("This does not appear to be a valid prescription. Please ensure the image is clear and contains a doctor's signature or clinic letterhead.");
+                const reason = result?.data?.data?.reason || "This does not appear to be a valid prescription. Please ensure the image is clear and contains a doctor's signature or clinic letterhead.";
+                setError(reason);
                 setIsScanning(false);
                 setIsAppBusy(false);
                 return;
