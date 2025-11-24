@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions, db } from './firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, where, getDocs } from 'firebase/firestore';
+import { doc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, where, getDocs } from 'firebase/firestore';
 import CameraComponent from './CameraComponent';
 
 const SkeletonLoader = () => (
@@ -22,8 +22,8 @@ const SkeletonLoader = () => (
 );
 
 const ScannerPage = ({ user, setIsAppBusy }) => {
-    const [file, setFile] = useState(null);
-    const [base64Image, setBase64Image] = useState(null);
+    // Changed: Store array of base64 strings
+    const [base64Images, setBase64Images] = useState([]);
     const [isScanning, setIsScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
     const [error, setError] = useState(null);
@@ -39,6 +39,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
 
     const [isCameraOpen, setIsCameraOpen] = useState(false);
 
+    const MAX_IMAGES = 3;
+
     const resetScanState = () => {
         setError(null);
         setScanResults(null);
@@ -49,32 +51,119 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         setMedsHaveBeenSaved(false);
     };
 
-    const handleFileChange = (e) => {
-        resetScanState();
-        setBase64Image(null);
-        const selectedFile = e.target.files[0];
-
-        if (selectedFile) {
-            setFile(selectedFile);
+    // Helper: Compress image
+    const compressImage = (file) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(selectedFile);
-            reader.onload = () => {
-                setBase64Image(reader.result);
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1024;
+                    const MAX_HEIGHT = 1024;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(dataUrl);
+                };
+                img.onerror = (err) => reject(err);
             };
-            reader.onerror = (error) => {
-                console.error("Error converting file to Base64:", error);
-                setError("Failed to read the image file.");
-            };
-        } else {
-            setFile(null);
+            reader.onerror = (err) => reject(err);
+        });
+    };
+
+    const handleFileChange = async (e) => {
+        resetScanState();
+        const files = Array.from(e.target.files);
+
+        if (files.length + base64Images.length > MAX_IMAGES) {
+            setError(`You can only select a maximum of ${MAX_IMAGES} images.`);
+            return;
+        }
+
+        try {
+            const compressedImages = await Promise.all(files.map(file => compressImage(file)));
+            setBase64Images(prev => [...prev, ...compressedImages]);
+        } catch (err) {
+            console.error("Error compressing images:", err);
+            setError("Failed to process images.");
         }
     };
 
-    const handlePhotoCapture = (capturedImageSrc) => {
+    const handlePhotoCapture = async (capturedImageSrc) => {
         resetScanState();
-        setFile(null);
-        setBase64Image(capturedImageSrc);
-        setIsCameraOpen(false);
+        if (base64Images.length >= MAX_IMAGES) {
+            setError(`You can only select a maximum of ${MAX_IMAGES} images.`);
+            setIsCameraOpen(false);
+            return;
+        }
+
+        // Even though capturedImageSrc is already base64, we might want to ensure it's compressed/resized if the camera component returns full res.
+        // For now, assuming CameraComponent returns a reasonable size or we can pass it through compressImage logic if we convert it to a Blob/File first.
+        // But to keep it simple and consistent, let's just add it. If needed, we can add compression here too.
+        // Actually, let's be safe and compress it too by creating a temporary Image object.
+        
+        try {
+             // Create a blob from base64 to reuse compressImage or just duplicate logic?
+             // Let's duplicate the canvas logic for base64 string input
+             const img = new Image();
+             img.src = capturedImageSrc;
+             img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1024;
+                const MAX_HEIGHT = 1024;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                
+                setBase64Images(prev => [...prev, compressedDataUrl]);
+                setIsCameraOpen(false);
+             };
+        } catch (err) {
+             console.error("Error processing captured photo:", err);
+             setError("Failed to process captured photo.");
+             setIsCameraOpen(false);
+        }
+    };
+
+    const handleRemoveImage = (indexToRemove) => {
+        setBase64Images(prev => prev.filter((_, index) => index !== indexToRemove));
+        resetScanState();
     };
 
     const handleCancelCamera = () => {
@@ -82,8 +171,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
     };
 
     const handleScan = async () => {
-        if (!base64Image) {
-            setError("Please select an image first.");
+        if (base64Images.length === 0) {
+            setError("Please select at least one image.");
             return;
         }
 
@@ -97,11 +186,13 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
 
         try {
             const scanPrescription = httpsCallable(functions, 'scanPrescription');
-            const base64Data = base64Image.split(',')[1];
-            const result = await scanPrescription({ imageData: base64Data });
+            // Send array of base64 strings (stripping the prefix)
+            const imagesData = base64Images.map(img => img.split(',')[1]);
+            
+            const result = await scanPrescription({ images: imagesData });
 
             if (result?.data?.data?.isPrescription === false) {
-                setError("This does not appear to be a prescription.");
+                setError("This does not appear to be a valid prescription. Please ensure the image is clear and contains a doctor's signature or clinic letterhead.");
                 setIsScanning(false);
                 setIsAppBusy(false);
                 return;
@@ -233,36 +324,63 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
 
             <div className="flex flex-col items-center gap-4">
 
-                <button
-                    onClick={() => setIsCameraOpen(true)}
-                    className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95"
-                >
-                    Use Camera
-                </button>
+                <div className="flex gap-4 w-full max-w-md">
+                    <button
+                        onClick={() => {
+                            if (base64Images.length >= MAX_IMAGES) {
+                                setError(`You can only select a maximum of ${MAX_IMAGES} images.`);
+                            } else {
+                                setIsCameraOpen(true);
+                            }
+                        }}
+                        disabled={base64Images.length >= MAX_IMAGES}
+                        className="flex-1 py-3 px-4 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Use Camera
+                    </button>
+                    
+                    <label className={`flex-1 flex items-center justify-center py-3 px-4 bg-white/20 hover:bg-white/30 text-slate-800 font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 cursor-pointer ${base64Images.length >= MAX_IMAGES ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        Upload File
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFileChange}
+                            disabled={base64Images.length >= MAX_IMAGES}
+                            className="hidden"
+                        />
+                    </label>
+                </div>
 
-                <p className="text-slate-700 text-shadow-sm my-1">-- OR --</p>
+                <p className="text-slate-600 text-sm">
+                    {base64Images.length} / {MAX_IMAGES} images selected
+                </p>
 
-                <label className="text-slate-800 text-shadow-sm">Choose a file from your device:</label>
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
-                                file:text-sm file:font-semibold file:bg-white/30 file:text-slate-800
-                                hover:file:bg-white/50 text-slate-800 text-shadow-sm"
-                />
-
-                {base64Image && (
-                    <img
-                        src={base64Image}
-                        alt="Prescription preview"
-                        className="mt-4 w-full max-w-md rounded-lg shadow-lg border border-white/30"
-                    />
+                {/* Thumbnails Grid */}
+                {base64Images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 w-full max-w-md">
+                        {base64Images.map((img, index) => (
+                            <div key={index} className="relative group">
+                                <img
+                                    src={img}
+                                    alt={`Prescription page ${index + 1}`}
+                                    className="w-full h-24 object-cover rounded-lg shadow border border-white/30"
+                                />
+                                <button
+                                    onClick={() => handleRemoveImage(index)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
+                                    aria-label="Remove image"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 )}
 
                 <button
                     onClick={handleScan}
-                    disabled={isScanning || !base64Image}
+                    disabled={isScanning || base64Images.length === 0}
                     className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-blue-600/80 to-purple-900/80 hover:from-blue-600 hover:to-purple-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50"
                 >
                     {isScanning ? (
@@ -273,7 +391,7 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                     ) : 'Scan Prescription'}
                 </button>
 
-                {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+                {error && <p className="text-red-500 text-sm mt-2 text-center px-4">{error}</p>}
             </div>
 
             {isScanning && <SkeletonLoader />}

@@ -76,24 +76,43 @@ exports.scanPrescription = onCall(async (request) => {
   // --- FIX: Initialize genAI *inside* the function ---
   const genAI = new GoogleGenerativeAI(geminiKey.value());
 
-  const { imageData } = request.data;
+  const { images } = request.data;
 
-  if (!imageData) {
-    throw new HttpsError("invalid-argument", "Missing 'imageData' argument.");
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    throw new HttpsError("invalid-argument", "Missing 'images' argument or it is empty.");
   }
 
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
 
-  const prompt = `You are a 2-step medical parser. Step 1: Is this image a medical prescription or a list of medicines? Respond only with a JSON object. If 'no', respond with {"isPrescription": false, "medicines": []}. If 'yes', proceed to Step 2: Analyze the image, extract all medicines (name, dosage, duration, genericAlternative), and respond with {"isPrescription": true, "medicines": [...]}.`;
+  const prompt = `You are a strict medical document analyst.
+  
+  Step 1: Visual Security Verification.
+  Analyze ALL provided images. You must look for visual markers that prove these are photos of physical medical documents.
+  Look for:
+  - Physical document edges or background (showing it's a photo of a paper).
+  - A Doctor's handwritten signature or stamp.
+  - A Clinic/Hospital Letterhead or official logo.
+  - Handwriting or printed text typical of prescriptions.
+  
+  If these visual markers are largely missing, or if the images appear to be random screenshots, digital text snippets, or irrelevant photos, REJECT the request.
+  
+  Step 2: Data Extraction & Aggregation.
+  If the images are valid prescriptions:
+  - Extract medicine details from ALL pages combined.
+  - Merge the list into a single array of medicines.
+  - For each medicine, extract: name, dosage, duration, genericAlternative.
+  
+  Response Format (JSON ONLY):
+  If Rejected: {"isPrescription": false, "medicines": []}
+  If Accepted: {"isPrescription": true, "medicines": [{ "name": "...", "dosage": "...", "duration": "...", "genericAlternative": "..." }, ...]}
+  `;
 
-  const imageParts = [
-    {
-      inlineData: {
-        mimeType: imageData.startsWith("data:image/png") ? "image/png" : "image/jpeg",
-        data: imageData.split(",")[1] || imageData,
-      },
+  const imageParts = images.map((base64Data) => ({
+    inlineData: {
+      mimeType: base64Data.startsWith("data:image/png") ? "image/png" : "image/jpeg", // Basic check, though we stripped prefix in frontend, sometimes it might be passed differently. Let's assume raw base64 from frontend update.
+      data: base64Data, // Frontend sends raw base64 string now
     },
-  ];
+  }));
 
   try {
     const result = await model.generateContent([prompt, ...imageParts]);
