@@ -326,6 +326,41 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         setIsCreatingReminder(false);
     };
 
+    const handleSetReminder = async (index, med) => {
+        // If schedule already exists, just show the confirmation
+        if (parsedSchedules[index]) {
+            setReminderConfirmForIndex(index);
+            return;
+        }
+
+        // If not, try to parse it
+        if (!med.dosage || !med.duration) {
+            setError("Cannot set reminder: Missing dosage or duration.");
+            return;
+        }
+
+        setIsAppBusy(true);
+        try {
+            const parseSchedule = httpsCallable(functions, 'parseSchedule');
+            const result = await parseSchedule({ dosage: med.dosage, duration: med.duration });
+            
+            if (result?.data?.data) {
+                setParsedSchedules(prev => ({
+                    ...prev,
+                    [index]: result.data.data
+                }));
+                setReminderConfirmForIndex(index);
+            } else {
+                setError("Could not determine a schedule for this medicine.");
+            }
+        } catch (err) {
+            console.error("Error parsing schedule:", err);
+            setError("Failed to parse schedule.");
+        } finally {
+            setIsAppBusy(false);
+        }
+    };
+
     const handleSaveMeds = async () => {
         if (verifiedMedicines.length === 0 || !user) return;
 
@@ -535,7 +570,7 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                                         </button>
                                     ) : (
                                         <button
-                                            onClick={() => setReminderConfirmForIndex(index)}
+                                            onClick={() => handleSetReminder(index, med)}
                                             className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded shadow-md"
                                         >
                                             Set Reminder
