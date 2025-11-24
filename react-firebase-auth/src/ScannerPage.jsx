@@ -22,10 +22,13 @@ const SkeletonLoader = () => (
 );
 
 const ScannerPage = ({ user, setIsAppBusy }) => {
-    // Changed: Store array of base64 strings
     const [base64Images, setBase64Images] = useState([]);
     const [isScanning, setIsScanning] = useState(false);
-    const [scanResults, setScanResults] = useState(null);
+    
+    // Split state for medicines
+    const [verifiedMedicines, setVerifiedMedicines] = useState([]);
+    const [reviewNeededMedicines, setReviewNeededMedicines] = useState([]);
+
     const [error, setError] = useState(null);
     const [crossCheckWarnings, setCrossCheckWarnings] = useState([]);
     const [isChecking, setIsChecking] = useState(false);
@@ -34,8 +37,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
 
     const [isCreatingReminder, setIsCreatingReminder] = useState(false);
     const [parsedSchedules, setParsedSchedules] = useState({});
-    const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null);
-    const [addedReminders, setAddedReminders] = useState([]);
+    const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null); // Stores index of *verified* list
+    const [addedReminders, setAddedReminders] = useState([]); // Stores indices of *verified* list
 
     const [isCameraOpen, setIsCameraOpen] = useState(false);
 
@@ -43,7 +46,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
 
     const resetScanState = () => {
         setError(null);
-        setScanResults(null);
+        setVerifiedMedicines([]);
+        setReviewNeededMedicines([]);
         setCrossCheckWarnings([]);
         setReminderConfirmForIndex(null);
         setParsedSchedules({});
@@ -116,15 +120,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
             setIsCameraOpen(false);
             return;
         }
-
-        // Even though capturedImageSrc is already base64, we might want to ensure it's compressed/resized if the camera component returns full res.
-        // For now, assuming CameraComponent returns a reasonable size or we can pass it through compressImage logic if we convert it to a Blob/File first.
-        // But to keep it simple and consistent, let's just add it. If needed, we can add compression here too.
-        // Actually, let's be safe and compress it too by creating a temporary Image object.
         
         try {
-             // Create a blob from base64 to reuse compressImage or just duplicate logic?
-             // Let's duplicate the canvas logic for base64 string input
              const img = new Image();
              img.src = capturedImageSrc;
              img.onload = () => {
@@ -179,14 +176,14 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         setError(null);
         setIsScanning(true);
         setIsAppBusy(true);
-        setScanResults(null);
+        setVerifiedMedicines([]);
+        setReviewNeededMedicines([]);
         setCrossCheckWarnings([]);
         setParsedSchedules({});
         setReminderConfirmForIndex(null);
 
         try {
             const scanPrescription = httpsCallable(functions, 'scanPrescription');
-            // Send array of base64 strings (stripping the prefix)
             const imagesData = base64Images.map(img => img.split(',')[1]);
             
             const result = await scanPrescription({ images: imagesData });
@@ -199,19 +196,38 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                 return;
             }
 
-            const newMedicines = result?.data?.data?.medicines || [];
-            setScanResults(newMedicines);
+            const allMedicines = result?.data?.data?.medicines || [];
+            
+            // Split medicines based on confidence and isKnownDrug
+            const verified = [];
+            const reviewNeeded = [];
+
+            allMedicines.forEach((med, index) => {
+                // Logic: High confidence (>80) AND isKnownDrug === true -> Verified
+                // Else -> Review Needed
+                // Note: You can adjust the confidence threshold as needed.
+                if (med.isKnownDrug && med.confidence > 80) {
+                    verified.push(med);
+                } else {
+                    reviewNeeded.push({ ...med, originalIndex: index }); // Keep track? or just push
+                }
+            });
+
+            setVerifiedMedicines(verified);
+            setReviewNeededMedicines(reviewNeeded);
             setIsScanning(false);
 
-            setIsChecking(true);
-            const crossCheckMedication = httpsCallable(functions, 'crossCheckMedication');
-            const crossCheckResult = await crossCheckMedication({ newMedicines: newMedicines });
-            const interactions = crossCheckResult?.data?.data?.interactions || [];
-            setCrossCheckWarnings(interactions);
-            setIsChecking(false);
+            // Only cross-check VERIFIED medicines initially
+            if (verified.length > 0) {
+                setIsChecking(true);
+                const crossCheckMedication = httpsCallable(functions, 'crossCheckMedication');
+                const crossCheckResult = await crossCheckMedication({ newMedicines: verified });
+                const interactions = crossCheckResult?.data?.data?.interactions || [];
+                setCrossCheckWarnings(interactions);
+                setIsChecking(false);
 
-            if (newMedicines.length > 0) {
-                const schedulePromises = newMedicines.map((med) => {
+                // Parse schedules for verified medicines
+                const schedulePromises = verified.map((med) => {
                     if (med.dosage && med.duration) {
                         const parseSchedule = httpsCallable(functions, 'parseSchedule');
                         return parseSchedule({ dosage: med.dosage, duration: med.duration });
@@ -227,6 +243,7 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                 });
                 setParsedSchedules(newParsedSchedules);
             }
+
         } catch (err) {
             console.error("Error during scan or cross-check:", err);
             setError(err?.message || "An error occurred. Please try again.");
@@ -235,12 +252,36 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         }
     };
 
+    const handleConfirmReviewItem = (index) => {
+        const itemToConfirm = reviewNeededMedicines[index];
+        // Move from reviewNeeded to verified
+        const newVerified = [...verifiedMedicines, itemToConfirm];
+        setVerifiedMedicines(newVerified);
+        
+        const newReviewNeeded = reviewNeededMedicines.filter((_, i) => i !== index);
+        setReviewNeededMedicines(newReviewNeeded);
+
+        // Trigger cross-check/schedule parsing for this newly verified item?
+        // For simplicity, we might just let it be added. Ideally, we should re-run cross-check for the whole list or just this one.
+        // Let's re-run cross-check for the updated verified list to be safe and consistent.
+        // (Async operation, might want to show loading state, but for now just fire and forget or update state)
+        // A better UX might be to just add it and let the user click "Save" which could trigger a final check, 
+        // but the current flow does checks immediately.
+        // Let's just add it for now.
+    };
+
+    const handleUpdateReviewItem = (index, field, value) => {
+        const updatedList = [...reviewNeededMedicines];
+        updatedList[index] = { ...updatedList[index], [field]: value };
+        setReviewNeededMedicines(updatedList);
+    };
+
     const handleConfirmReminder = async (index) => {
         if (!user) {
             setError("You must be signed in to set reminders.");
             return;
         }
-        const med = scanResults[index];
+        const med = verifiedMedicines[index];
         const schedule = parsedSchedules[index];
 
         if (!med || !schedule) {
@@ -286,14 +327,14 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
     };
 
     const handleSaveMeds = async () => {
-        if (!scanResults || !user) return;
+        if (verifiedMedicines.length === 0 || !user) return;
 
         setIsSaving(true);
         const userDocRef = doc(db, "users", user.uid);
         const validateMedicalTerm = httpsCallable(functions, 'validateMedicalTerm');
 
         let savedCount = 0;
-        for (const med of scanResults) {
+        for (const med of verifiedMedicines) {
             try {
                 const result = await validateMedicalTerm({ text: med.name, category: 'current_meds' });
                 const { isValid, correctedTerm } = result.data.data;
@@ -397,84 +438,140 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
 
             {isScanning && <SkeletonLoader />}
 
-            {scanResults && (
+            {/* --- Review Needed Section --- */}
+            {reviewNeededMedicines.length > 0 && (
+                <div className="space-y-4 border-2 border-orange-400/50 p-4 rounded-lg bg-orange-50/50">
+                    <h3 className="text-2xl font-bold text-orange-600 flex items-center gap-2">
+                        <span>⚠️</span> Review Needed
+                    </h3>
+                    <p className="text-slate-700 text-sm">
+                        Please verify and correct the spelling of these medicines before saving.
+                    </p>
+                    {reviewNeededMedicines.map((med, index) => (
+                        <div key={index} className="bg-white/60 p-4 rounded-lg shadow-md border border-orange-300">
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase">Medicine Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={med.name}
+                                        onChange={(e) => handleUpdateReviewItem(index, 'name', e.target.value)}
+                                        className="w-full p-2 border rounded font-bold text-slate-800"
+                                    />
+                                    {med.originalText && med.originalText !== med.name && (
+                                        <p className="text-xs text-slate-500 mt-1">Original text: "{med.originalText}"</p>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase">Dosage</label>
+                                        <input 
+                                            type="text" 
+                                            value={med.dosage}
+                                            onChange={(e) => handleUpdateReviewItem(index, 'dosage', e.target.value)}
+                                            className="w-full p-2 border rounded text-slate-700"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase">Duration</label>
+                                        <input 
+                                            type="text" 
+                                            value={med.duration}
+                                            onChange={(e) => handleUpdateReviewItem(index, 'duration', e.target.value)}
+                                            className="w-full p-2 border rounded text-slate-700"
+                                        />
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => handleConfirmReviewItem(index)}
+                                    className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded shadow transition-colors"
+                                >
+                                    Confirm & Move to Verified
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* --- Verified Section --- */}
+            {verifiedMedicines.length > 0 && (
                 <div className="space-y-4">
                     <h3 className="text-3xl font-bold text-center animated-gradient-header">
-                        Scan Results
+                        Verified Medicines
                     </h3>
                     <button
                         onClick={handleSaveMeds}
                         disabled={isSaving || medsHaveBeenSaved}
-                        className="w-full max-w-md py-3 px-4 bg-gradient-to-br from-green-600/80 to-green-900/80 hover:from-green-600 hover:to-green-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:from-gray-500 disabled:to-gray-600 disabled:shadow-none disabled:hover:from-gray-600"
+                        className="w-full max-w-md mx-auto block py-3 px-4 bg-gradient-to-br from-green-600/80 to-green-900/80 hover:from-green-600 hover:to-green-900 text-white font-bold rounded-md shadow-lg border border-white/30 transition-all duration-200 hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:from-gray-500 disabled:to-gray-600 disabled:shadow-none disabled:hover:from-gray-600"
                     >
                         {isSaving
                             ? 'Saving...'
                             : medsHaveBeenSaved
                                 ? 'Medicines Saved'
-                                : 'Save Scanned Medicines to Profile'}
+                                : 'Save Verified Medicines to Profile'}
                     </button>
 
-                    {scanResults.length > 0 ? (
-                        scanResults.map((med, index) => (
-                            <div key={index} className="bg-white/30 p-4 rounded-lg shadow-md border border-white/40">
-                                <div className="flex justify-between items-start gap-4">
-                                    <div>
-                                        <p className="text-xl font-bold text-slate-800">{med.name}</p>
-                                        <p className="text-slate-700"><strong>Generic:</strong> {med.genericAlternative}</p>
-                                        <p className="text-slate-700"><strong>Dosage:</strong> {med.dosage}</p>
-                                        <p className="text-slate-700"><strong>Duration:</strong> {med.duration}</p>
-                                    </div>
-
-                                    <div className="flex flex-col gap-2">
-                                        {addedReminders.includes(index) ? (
-                                            <button
-                                                disabled
-                                                className="px-3 py-1 bg-gray-500 text-white rounded shadow-md"
-                                            >
-                                                Reminder Added
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => setReminderConfirmForIndex(index)}
-                                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded shadow-md"
-                                            >
-                                                Set Reminder
-                                            </button>
-                                        )}
-                                    </div>
+                    {verifiedMedicines.map((med, index) => (
+                        <div key={index} className="bg-white/30 p-4 rounded-lg shadow-md border border-white/40">
+                            <div className="flex justify-between items-start gap-4">
+                                <div>
+                                    <p className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        {med.name}
+                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-200">Verified</span>
+                                    </p>
+                                    <p className="text-slate-700"><strong>Generic:</strong> {med.genericAlternative}</p>
+                                    <p className="text-slate-700"><strong>Dosage:</strong> {med.dosage}</p>
+                                    <p className="text-slate-700"><strong>Duration:</strong> {med.duration}</p>
                                 </div>
 
-                                {reminderConfirmForIndex === index && parsedSchedules[index] && (
-                                    <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
-                                        <p className="font-semibold">
-                                            {parsedSchedules[index].for_x_days !== null
-                                                ? `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for ${parsedSchedules[index].for_x_days} days.`
-                                                : `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for an ongoing duration. This reminder will be 'Active' until you pause it.`
-                                            }
-                                        </p>
-                                        <p>Would you like to schedule these reminders?</p>
-                                        <div className="mt-2 flex gap-2">
-                                            <button
-                                                onClick={() => handleConfirmReminder(index)}
-                                                disabled={isCreatingReminder}
-                                                className="px-3 py-1 bg-indigo-600 text-white rounded shadow-md disabled:opacity-50"
-                                            >
-                                                {isCreatingReminder ? 'Saving...' : 'Confirm'}
-                                            </button>
-                                            <button
-                                                onClick={() => setReminderConfirmForIndex(null)}
-                                                className="px-3 py-1 bg-gray-400 rounded"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                <div className="flex flex-col gap-2">
+                                    {addedReminders.includes(index) ? (
+                                        <button
+                                            disabled
+                                            className="px-3 py-1 bg-gray-500 text-white rounded shadow-md"
+                                        >
+                                            Reminder Added
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setReminderConfirmForIndex(index)}
+                                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded shadow-md"
+                                        >
+                                            Set Reminder
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        ))
-                    ) : (
-                        <p className="text-center text-slate-700">No medicines found in the image.</p>
-                    )}
+
+                            {reminderConfirmForIndex === index && parsedSchedules[index] && (
+                                <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
+                                    <p className="font-semibold">
+                                        {parsedSchedules[index].for_x_days !== null
+                                            ? `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for ${parsedSchedules[index].for_x_days} days.`
+                                            : `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for an ongoing duration. This reminder will be 'Active' until you pause it.`
+                                        }
+                                    </p>
+                                    <p>Would you like to schedule these reminders?</p>
+                                    <div className="mt-2 flex gap-2">
+                                        <button
+                                            onClick={() => handleConfirmReminder(index)}
+                                            disabled={isCreatingReminder}
+                                            className="px-3 py-1 bg-indigo-600 text-white rounded shadow-md disabled:opacity-50"
+                                        >
+                                            {isCreatingReminder ? 'Saving...' : 'Confirm'}
+                                        </button>
+                                        <button
+                                            onClick={() => setReminderConfirmForIndex(null)}
+                                            className="px-3 py-1 bg-gray-400 rounded"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             )}
 

@@ -97,11 +97,22 @@ exports.scanPrescription = onCall(async (request) => {
     Return: {"isPrescription": false, "reason": "Missing official clinic header or doctor details."}
   - If these markers are PRESENT: PROCEED to Step 2.
 
-  Step 2: Data Extraction.
+  Step 2: Data Extraction & Safety Check.
   - Extract the "clinicDetails" (the detected name, address, or doctor's details that passed Step 1).
   - Extract all medicine details from ALL pages combined.
   - Merge the list into a single array of medicines.
-  - For each medicine, extract: name, dosage, duration, genericAlternative.
+  - For each medicine, extract:
+    - name: The corrected, likely intended medicine name (Prioritize clear, printed text).
+    - dosage: e.g., "500mg".
+    - duration: e.g., "5 days".
+    - genericAlternative: The generic name.
+    - confidence: A number (0-100) representing how clear the text is.
+    - isKnownDrug: Boolean. true if 'name' matches a known real-world brand or generic. false if it looks like a typo or gibberish.
+    - originalText: The exact text found in the image, if different from 'name'.
+
+  Logic:
+  - If the extracted text is "Glimmerday" but you believe it is "Glimser" based on context/similarity, set name="Glimser" and originalText="Glimmerday".
+  - Prioritize clear, printed text on packaging over ambiguous handwritten notes.
 
   Response Format (JSON ONLY):
   If Rejected: {"isPrescription": false, "reason": "..."}
@@ -110,7 +121,15 @@ exports.scanPrescription = onCall(async (request) => {
     "isPrescription": true,
     "clinicDetails": "Extracted Header Info",
     "medicines": [
-      { "name": "...", "dosage": "...", "duration": "...", "genericAlternative": "..." },
+      { 
+        "name": "...", 
+        "dosage": "...", 
+        "duration": "...", 
+        "genericAlternative": "...",
+        "confidence": 95,
+        "isKnownDrug": true,
+        "originalText": "..."
+      },
       ...
     ]
   }
