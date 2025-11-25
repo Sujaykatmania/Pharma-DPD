@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions, db } from './firebase';
 import { doc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, where, getDocs } from 'firebase/firestore';
 import CameraComponent from './CameraComponent';
+import ReminderModal from './components/ReminderModal';
 
 const SkeletonLoader = () => (
     <div className="space-y-4">
@@ -35,9 +36,8 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [medsHaveBeenSaved, setMedsHaveBeenSaved] = useState(false);
 
-    const [isCreatingReminder, setIsCreatingReminder] = useState(false);
-    const [parsedSchedules, setParsedSchedules] = useState({});
-    const [reminderConfirmForIndex, setReminderConfirmForIndex] = useState(null); // Stores index of *verified* list
+    const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+    const [selectedMedForReminder, setSelectedMedForReminder] = useState(null);
     const [addedReminders, setAddedReminders] = useState([]); // Stores indices of *verified* list
 
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -49,8 +49,6 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         setVerifiedMedicines([]);
         setReviewNeededMedicines([]);
         setCrossCheckWarnings([]);
-        setReminderConfirmForIndex(null);
-        setParsedSchedules({});
         setAddedReminders([]);
         setMedsHaveBeenSaved(false);
     };
@@ -179,8 +177,6 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         setVerifiedMedicines([]);
         setReviewNeededMedicines([]);
         setCrossCheckWarnings([]);
-        setParsedSchedules({});
-        setReminderConfirmForIndex(null);
 
         try {
             const scanPrescription = httpsCallable(functions, 'scanPrescription');
@@ -226,22 +222,6 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                 setCrossCheckWarnings(interactions);
                 setIsChecking(false);
 
-                // Parse schedules for verified medicines
-                const schedulePromises = verified.map((med) => {
-                    if (med.dosage && med.duration) {
-                        const parseSchedule = httpsCallable(functions, 'parseSchedule');
-                        return parseSchedule({ dosage: med.dosage, duration: med.duration });
-                    }
-                    return Promise.resolve(null);
-                });
-                const scheduleResults = await Promise.all(schedulePromises);
-                const newParsedSchedules = {};
-                scheduleResults.forEach((result, index) => {
-                    if (result) {
-                        newParsedSchedules[index] = result.data.data;
-                    }
-                });
-                setParsedSchedules(newParsedSchedules);
             }
 
         } catch (err) {
@@ -276,88 +256,44 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
         setReviewNeededMedicines(updatedList);
     };
 
-    const handleConfirmReminder = async (index) => {
+    const handleSetReminder = (index, med) => {
         if (!user) {
             setError("You must be signed in to set reminders.");
             return;
         }
-        const med = verifiedMedicines[index];
-        const schedule = parsedSchedules[index];
+        setSelectedMedForReminder({ ...med, index });
+        setIsReminderModalOpen(true);
+    };
 
-        if (!med || !schedule) {
-            setError("Could not find medicine or schedule data.");
-            return;
-        }
-
-        setIsCreatingReminder(true);
-        setError(null);
+    const handleSaveReminderFromModal = async (data) => {
+        if (!user || !selectedMedForReminder) return;
 
         try {
             const remindersRef = collection(db, `users/${user.uid}/reminders`);
-            const q = query(remindersRef, where("medName", "==", med.name));
+            // Check for duplicates
+            const q = query(remindersRef, where("medName", "==", data.medName));
             const existingDocs = await getDocs(q);
 
             if (!existingDocs.empty) {
-                setError("A reminder for this medicine already exists.");
-                setIsCreatingReminder(false);
+                setError(`A reminder for ${data.medName} already exists.`);
                 return;
             }
 
             const reminderDoc = {
-                medName: med.name,
-                dosage: med.dosage,
-                durationInDays: schedule.for_x_days,
-                isOngoing: schedule.for_x_days === null,
-                timesPerDay: schedule.times_per_day,
-                isPRN: schedule.is_prn || false,
+                ...data,
                 createdAt: serverTimestamp(),
                 isActive: true
             };
 
             await addDoc(remindersRef, reminderDoc);
 
-            setAddedReminders(prev => [...prev, index]);
-            setReminderConfirmForIndex(null);
+            setAddedReminders(prev => [...prev, selectedMedForReminder.index]);
+            setIsReminderModalOpen(false);
+            setSelectedMedForReminder(null);
 
         } catch (e) {
             console.error("Failed to create reminder:", e);
             setError("Failed to create reminder.");
-        }
-        setIsCreatingReminder(false);
-    };
-
-    const handleSetReminder = async (index, med) => {
-        // If schedule already exists, just show the confirmation
-        if (parsedSchedules[index]) {
-            setReminderConfirmForIndex(index);
-            return;
-        }
-
-        // If not, try to parse it
-        if (!med.dosage || !med.duration) {
-            setError("Cannot set reminder: Missing dosage or duration.");
-            return;
-        }
-
-        setIsAppBusy(true);
-        try {
-            const parseSchedule = httpsCallable(functions, 'parseSchedule');
-            const result = await parseSchedule({ dosage: med.dosage, duration: med.duration });
-            
-            if (result?.data?.data) {
-                setParsedSchedules(prev => ({
-                    ...prev,
-                    [index]: result.data.data
-                }));
-                setReminderConfirmForIndex(index);
-            } else {
-                setError("Could not determine a schedule for this medicine.");
-            }
-        } catch (err) {
-            console.error("Error parsing schedule:", err);
-            setError("Failed to parse schedule.");
-        } finally {
-            setIsAppBusy(false);
         }
     };
 
@@ -579,32 +515,7 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                                 </div>
                             </div>
 
-                            {reminderConfirmForIndex === index && parsedSchedules[index] && (
-                                <div className="mt-3 p-3 border rounded bg-green-100/80 text-slate-800">
-                                    <p className="font-semibold">
-                                        {parsedSchedules[index].for_x_days !== null
-                                            ? `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for ${parsedSchedules[index].for_x_days} days.`
-                                            : `Detected a schedule of ${parsedSchedules[index].times_per_day} times per day for an ongoing duration. This reminder will be 'Active' until you pause it.`
-                                        }
-                                    </p>
-                                    <p>Would you like to schedule these reminders?</p>
-                                    <div className="mt-2 flex gap-2">
-                                        <button
-                                            onClick={() => handleConfirmReminder(index)}
-                                            disabled={isCreatingReminder}
-                                            className="px-3 py-1 bg-indigo-600 text-white rounded shadow-md disabled:opacity-50"
-                                        >
-                                            {isCreatingReminder ? 'Saving...' : 'Confirm'}
-                                        </button>
-                                        <button
-                                            onClick={() => setReminderConfirmForIndex(null)}
-                                            className="px-3 py-1 bg-gray-400 rounded"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                            {/* Reminder Modal Triggered via State */}
                         </div>
                     ))}
                 </div>
@@ -635,6 +546,13 @@ const ScannerPage = ({ user, setIsAppBusy }) => {
                     </div>
                 </div>
             )}
+            {/* Reminder Modal */}
+            <ReminderModal
+                isOpen={isReminderModalOpen}
+                onClose={() => setIsReminderModalOpen(false)}
+                initialData={selectedMedForReminder}
+                onSave={handleSaveReminderFromModal}
+            />
         </div>
     );
 };
