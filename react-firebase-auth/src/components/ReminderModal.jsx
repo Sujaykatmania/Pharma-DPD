@@ -63,12 +63,44 @@ const ReminderModal = ({ isOpen, onClose, initialData, onSave }) => {
             frequency: isSOS ? 0 : frequency,
             scheduledTimes: isSOS ? [] : times,
         };
+
+        if (!isSOS && times.length > 0) {
+            // Calculate nextScheduledRun
+            const now = new Date();
+            let nextRun = null;
+            
+            // Sort times to find the earliest next time
+            const sortedTimes = [...times].sort();
+            
+            for (const timeStr of sortedTimes) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const potentialDate = new Date();
+                potentialDate.setHours(hours, minutes, 0, 0);
+                
+                if (potentialDate > now) {
+                    nextRun = potentialDate;
+                    break;
+                }
+            }
+
+            // If no time is later today, pick the first time tomorrow
+            if (!nextRun) {
+                const [hours, minutes] = sortedTimes[0].split(':').map(Number);
+                nextRun = new Date();
+                nextRun.setDate(nextRun.getDate() + 1);
+                nextRun.setHours(hours, minutes, 0, 0);
+            }
+            
+            data.nextScheduledRun = nextRun;
+        }
+
         await onSave(data);
         setIsSaving(false);
         onClose();
     };
 
     if (!isOpen) return null;
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">

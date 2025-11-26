@@ -1,6 +1,7 @@
 // --- THIS IS THE FINAL AI BACKEND ---
 const functions = require("firebase-functions");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -253,5 +254,128 @@ Output: {"times_per_day": 1, "for_x_days": null}`;
   } catch (error) {
     console.error("Error in parseSchedule:", error);
     throw new HttpsError("internal", "Failed to parse schedule.");
+  }
+});
+
+// --- 3. NOTIFICATION SCHEDULERS ---
+
+// Cron Job 1: Send Reminders (Every 15 minutes)
+exports.sendReminders = onSchedule("every 15 minutes", async (event) => {
+  const now = new Date();
+  
+  try {
+    // Query active, non-SOS reminders that are due
+    const remindersSnapshot = await db.collectionGroup("reminders")
+      .where("isActive", "==", true)
+      .where("isSOS", "==", false)
+      .where("nextScheduledRun", "<=", now)
+      .get();
+
+    if (remindersSnapshot.empty) {
+      console.log("No reminders due.");
+      return;
+    }
+
+    const batch = db.batch();
+    const notifications = [];
+
+    for (const doc of remindersSnapshot.docs) {
+      const reminder = doc.data();
+      const parentUserRef = doc.ref.parent.parent; // users/{uid}
+      
+      if (!parentUserRef) continue;
+
+      // Prepare notification
+      notifications.push((async () => {
+        const userDoc = await parentUserRef.get();
+        if (!userDoc.exists) return;
+
+        const userData = userDoc.data();
+        const tokens = userData.fcmTokens || [];
+
+        if (tokens.length > 0) {
+          const message = {
+            notification: {
+              title: "Medication Reminder",
+              body: `Time to take your ${reminder.medName}!`,
+            },
+            tokens: tokens,
+          };
+
+          try {
+            await admin.messaging().sendEachForMulticast(message);
+            console.log(`Notification sent for ${reminder.medName}`);
+          } catch (err) {
+            console.error("Error sending notification:", err);
+          }
+        }
+
+        // Calculate next run (add 24 hours for simplicity as per instructions)
+        // "CRITICAL: Calculate the next run (add 24 hours) and update the nextScheduledRun"
+        const nextRun = new Date(reminder.nextScheduledRun.toDate());
+        nextRun.setHours(nextRun.getHours() + 24);
+        
+        batch.update(doc.ref, { nextScheduledRun: nextRun });
+      })());
+    }
+
+    await Promise.all(notifications);
+    await batch.commit();
+    console.log(`Processed ${remindersSnapshot.size} reminders.`);
+
+  } catch (error) {
+    console.error("Error in sendReminders:", error);
+  }
+});
+
+// Cron Job 2: Daily SOS Check-in (Every day at 20:00)
+exports.sendSOSCheckin = onSchedule("every day 20:00", async (event) => {
+  try {
+    // Query users who have at least one active SOS reminder
+    // Note: Collection Group Query for 'reminders' where isSOS == true
+    const sosRemindersSnapshot = await db.collectionGroup("reminders")
+      .where("isActive", "==", true)
+      .where("isSOS", "==", true)
+      .get();
+
+    if (sosRemindersSnapshot.empty) {
+      console.log("No SOS reminders found.");
+      return;
+    }
+
+    // Get unique user IDs
+    const userIds = new Set();
+    sosRemindersSnapshot.forEach(doc => {
+      const parentUserRef = doc.ref.parent.parent;
+      if (parentUserRef) userIds.add(parentUserRef.id);
+    });
+
+    for (const uid of userIds) {
+      const userDoc = await db.collection("users").doc(uid).get();
+      if (!userDoc.exists) continue;
+
+      const userData = userDoc.data();
+      const tokens = userData.fcmTokens || [];
+
+      if (tokens.length > 0) {
+        const message = {
+          notification: {
+            title: "Daily Check-in",
+            body: "Did you need any of your SOS medications today? Tap to log.",
+          },
+          tokens: tokens,
+        };
+
+        try {
+          await admin.messaging().sendEachForMulticast(message);
+          console.log(`SOS Check-in sent to user ${uid}`);
+        } catch (err) {
+          console.error(`Error sending SOS check-in to ${uid}:`, err);
+        }
+      }
+    }
+
+  } catch (error) {
+    console.error("Error in sendSOSCheckin:", error);
   }
 });

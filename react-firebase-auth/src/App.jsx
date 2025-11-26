@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { LoginPage } from './LoginPage.jsx';
 import { HomePage } from './HomePage.jsx';
 import { SplashScreen } from './SplashScreen.jsx';
+import { requestNotificationPermission } from './utils/notifications';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -31,6 +32,7 @@ function App() {
           });
         }
         setUser(user);
+        requestNotificationPermission(user.uid);
       } else {
         // User is signed out
         setUser(null);
