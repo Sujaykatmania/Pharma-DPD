@@ -1,5 +1,5 @@
 import { getToken } from "firebase/messaging";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, setDoc, arrayUnion } from "firebase/firestore";
 import { messaging, db } from "../firebase";
 
 export const requestNotificationPermission = async (uid) => {
@@ -14,9 +14,9 @@ export const requestNotificationPermission = async (uid) => {
       if (token) {
         // Save token to user's document
         const userRef = doc(db, "users", uid);
-        await updateDoc(userRef, {
+        await setDoc(userRef, {
           fcmTokens: arrayUnion(token)
-        });
+        }, {merge: true });
         console.log("Notification permission granted and token saved.");
         return token;
       }
